@@ -88,8 +88,8 @@ class ObjectiveWeek {
 /// Holds the raw data for the calendar.
 class CalendarPageModel {
   List<Event> listEvent;
-  List<ObjectiveWeek> listObjWeek;
   List<String> listEventName;
+  List<ObjectiveWeek> listObjWeek;
 
   CalendarPageModel({
     List<Event>? initialEvents,
@@ -173,9 +173,25 @@ class CalendarPageViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Helper to check if a name is still used by other events, excluding a specific one
+  bool _isEventNameStillUsedExcludingEvent(String name, Event excludedEvent) {
+    return _model.listEvent.any((Event e) => e.name == name && e != excludedEvent);
+  }
+
   void updateEvent(Event oldEvent, Event newEvent) {
     final int index = _model.listEvent.indexOf(oldEvent);
     if (index != -1) {
+      // If the event name has changed, manage suggestions
+      if (oldEvent.name != newEvent.name) {
+        // Check if the old name is still used by any other event (excluding the one being updated)
+        if (!_isEventNameStillUsedExcludingEvent(oldEvent.name, oldEvent)) {
+          _model.listEventName.remove(oldEvent.name);
+          _model.listEventName.sort(); // Keep sorted
+        }
+        // Add the new name to suggestions (it will check for existence internally)
+        addEventNameSuggestion(newEvent.name);
+      }
+
       _model.listEvent[index] = newEvent;
       _model.listEvent.sort((Event a, Event b) => a.dateTime.compareTo(b.dateTime));
       notifyListeners();
@@ -183,7 +199,15 @@ class CalendarPageViewModel extends ChangeNotifier {
   }
 
   void deleteEvent(Event event) {
+    final String eventNameToRemove = event.name;
     _model.listEvent.remove(event);
+
+    // After removing the event, check if its name is still present in any other event
+    final bool nameStillInUse = _model.listEvent.any((Event e) => e.name == eventNameToRemove);
+    if (!nameStillInUse) {
+      _model.listEventName.remove(eventNameToRemove);
+      _model.listEventName.sort(); // Keep sorted
+    }
     notifyListeners();
   }
 
