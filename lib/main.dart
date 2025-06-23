@@ -538,7 +538,8 @@ class CalendarPageView extends StatelessWidget {
                         nameController.text = textEditingValue.text;
 
                         if (textEditingValue.text.isEmpty) {
-                          return const Iterable<String>.empty();
+                          // Show all suggestions when the input is empty
+                          return viewModel.eventNameSuggestions;
                         }
                         return viewModel.eventNameSuggestions.where((String option) {
                           return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
