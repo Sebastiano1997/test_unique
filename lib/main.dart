@@ -138,7 +138,9 @@ class CalendarPageViewModel extends ChangeNotifier {
 
   DateTime _addDuration(DateTime date, {Duration? duration, int? month, int? year}) {
     DateTime dateReturned = date;
-    if (duration != null) dateReturned.add(duration);
+    if (duration != null) {
+      dateReturned = dateReturned.add(duration);
+    }
     if (month != null) {
       int monthCurrent = dateReturned.month;
       dateReturned = DateTime(dateReturned.year, monthCurrent + month,
@@ -485,18 +487,18 @@ class CalendarPageView extends StatelessWidget {
 
   void _showEventManagementDialog(BuildContext context, CalendarPageViewModel viewModel,
       DateTime initialDate, {Event? eventToEdit}) {
-    final TextEditingController nameController =
-    TextEditingController(text: eventToEdit?.name ?? '');
-    final TextEditingController descriptionController = TextEditingController(text: eventToEdit?.description ?? '');
-    DateTime selectedDate = eventToEdit?.dateTime ?? initialDate;
-    TimeOfDay selectedTime = eventToEdit != null
-        ? TimeOfDay.fromDateTime(eventToEdit.dateTime)
-        : TimeOfDay.fromDateTime(initialDate);
-    int selectedColor = eventToEdit?.color ?? Colors.blue.value;
-
     showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
+        final TextEditingController nameController =
+        TextEditingController(text: eventToEdit?.name ?? '');
+        final TextEditingController descriptionController = TextEditingController(text: eventToEdit?.description ?? '');
+        DateTime selectedDate = eventToEdit?.dateTime ?? initialDate;
+        TimeOfDay selectedTime = eventToEdit != null
+            ? TimeOfDay.fromDateTime(eventToEdit.dateTime)
+            : TimeOfDay.fromDateTime(initialDate);
+        int selectedColor = eventToEdit?.color ?? Colors.blue.value;
+
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return AlertDialog(
@@ -507,7 +509,11 @@ class CalendarPageView extends StatelessWidget {
                   children: <Widget>[
                     Autocomplete<String>(
                       optionsBuilder: (TextEditingValue textEditingValue) {
-                        if (textEditingValue.text == '') {
+                        // Keep the external nameController in sync with Autocomplete's internal TextField input.
+                        // This ensures `nameController.text` always holds the current displayed value.
+                        nameController.text = textEditingValue.text;
+
+                        if (textEditingValue.text.isEmpty) {
                           return const Iterable<String>.empty();
                         }
                         return viewModel.eventNameSuggestions.where((String option) {
@@ -515,12 +521,20 @@ class CalendarPageView extends StatelessWidget {
                         });
                       },
                       onSelected: (String selection) {
+                        // When a suggestion is selected, update the external nameController.
                         nameController.text = selection;
                       },
                       fieldViewBuilder: (BuildContext context,
                           TextEditingController textEditingController,
                           FocusNode focusNode,
                           void Function() onFieldSubmitted) {
+                        // Ensure the Autocomplete's internal controller displays the initial value
+                        // from `nameController` when the dialog first appears for editing.
+                        // This check prevents an infinite loop if the values are already in sync.
+                        if (textEditingController.text != nameController.text) {
+                          textEditingController.text = nameController.text;
+                        }
+
                         return TextField(
                           controller: textEditingController,
                           focusNode: focusNode,
@@ -545,6 +559,8 @@ class CalendarPageView extends StatelessWidget {
                                   return GestureDetector(
                                     onTap: () {
                                       onSelected(option);
+                                      // Ensure nameController is updated here too, in case onSelected doesn't trigger a rebuild
+                                      nameController.text = option;
                                     },
                                     child: ListTile(
                                       title: Text(option),
