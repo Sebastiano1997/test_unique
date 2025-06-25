@@ -1,1172 +1,635 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For HapticFeedback
 import 'package:provider/provider.dart';
-import 'dart:collection'; // For UnmodifiableListView
-import 'package:shared_preferences/shared_preferences.dart'; // Allowed package
-import 'dart:convert'; // For JSON serialization
 
-/// Represents an event on a specific date.
-@immutable
-class Event {
-  final DateTime dateTime;
+// --- DATA MODELS ---
+
+/// Represents an activity with a unique identifier and a name.
+class Activity {
+  final String id;
   final String name;
-  final String description;
-  final int color; // ARGB integer value
 
-  const Event({
-    required this.dateTime,
-    required this.name,
-    required this.description,
-    required this.color,
-  });
-
-  Event copyWith({
-    DateTime? dateTime,
-    String? name,
-    String? description,
-    int? color,
-  }) {
-    return Event(
-      dateTime: dateTime ?? this.dateTime,
-      name: name ?? this.name,
-      description: description ?? this.description,
-      color: color ?? this.color,
-    );
-  }
-
-  // Convert an Event object to a JSON map
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'dateTime': dateTime.toIso8601String(),
-      'name': name,
-      'description': description,
-      'color': color,
-    };
-  }
-
-  // Create an Event object from a JSON map
-  factory Event.fromJson(Map<String, dynamic> json) {
-    return Event(
-      dateTime: DateTime.parse(json['dateTime'] as String),
-      name: json['name'] as String,
-      description: json['description'] as String,
-      color: json['color'] as int,
-    );
-  }
+  Activity({required this.id, required this.name});
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is Event &&
-              runtimeType == other.runtimeType &&
-              dateTime == other.dateTime &&
-              name == other.name &&
-              description == other.description &&
-              color == other.color;
+          other is Activity && runtimeType == other.runtimeType && id == other.id;
 
   @override
-  int get hashCode => Object.hash(dateTime, name, description, color);
+  int get hashCode => id.hashCode;
 }
 
-/// Represents an objective for a specific week.
-@immutable
-class ObjectiveWeek {
-  // anyDayOfWeek is used to identify the week. It should typically be
-  // the first day of the week (e.g., Monday).
-  final DateTime anyDayOfWeek;
-  final String objective;
-  final String realization;
+/// Represents a logged work session for an activity.
+class DateWork {
+  final String activityName;
+  final DateTime startTime;
+  final DateTime? endTime; // Nullable if session is ongoing or wasn't properly stopped
+  final Duration duration;
 
-  const ObjectiveWeek({
-    required this.anyDayOfWeek,
-    required this.objective,
-    required this.realization,
+  DateWork({
+    required this.activityName,
+    required this.startTime,
+    this.endTime,
+    required this.duration,
   });
 
-  ObjectiveWeek copyWith({
-    DateTime? anyDayOfWeek,
-    String? objective,
-    String? realization,
-  }) {
-    return ObjectiveWeek(
-      anyDayOfWeek: anyDayOfWeek ?? this.anyDayOfWeek,
-      objective: objective ?? this.objective,
-      realization: realization ?? this.realization,
-    );
+  /// Formats the duration into HH:MM:SS string.
+  String get formattedDuration {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = duration.inMinutes.remainder(60).toString().padLeft(2, "0");
+    String twoDigitSeconds = duration.inSeconds.remainder(60).toString().padLeft(2, "0");
+    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
   }
 
-  // Convert an ObjectiveWeek object to a JSON map
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'anyDayOfWeek': anyDayOfWeek.toIso8601String(),
-      'objective': objective,
-      'realization': realization,
-    };
+  /// Formats the start time for display.
+  String get formattedStartTime {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    return "${startTime.hour}:${twoDigits(startTime.minute)} on ${startTime.day}/${startTime.month}";
   }
-
-  // Create an ObjectiveWeek object from a JSON map
-  factory ObjectiveWeek.fromJson(Map<String, dynamic> json) {
-    return ObjectiveWeek(
-      anyDayOfWeek: DateTime.parse(json['anyDayOfWeek'] as String),
-      objective: json['objective'] as String,
-      realization: json['realization'] as String,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is ObjectiveWeek &&
-              runtimeType == other.runtimeType &&
-              anyDayOfWeek == other.anyDayOfWeek &&
-              objective == other.objective &&
-              realization == other.realization;
-
-  @override
-  int get hashCode => Object.hash(anyDayOfWeek, objective, realization);
 }
 
-/// Holds the raw data for the calendar.
-class CalendarPageModel {
-  List<Event> listEvent;
-  List<String> listEventName;
-  List<ObjectiveWeek> listObjWeek;
+// --- VIEW MODEL ---
 
-  CalendarPageModel({
-    List<Event>? initialEvents,
-    List<ObjectiveWeek>? initialObjectiveWeeks,
-    List<String>? initialEventNames,
-  })  : listEvent = initialEvents ?? <Event>[],
-        listObjWeek = initialObjectiveWeeks ?? <ObjectiveWeek>[],
-        listEventName = initialEventNames ?? <String>[
-          "Meeting",
-          "Appointment",
-          "Workout",
-          "Study Session",
-          "Project Deadline"
-        ];
-}
+/// Manages the state and logic for the activity timer.
+class ActivityViewModel extends ChangeNotifier {
+  // --- Private Properties ---
+  final List<Activity> _activities;
+  Activity? _selectedActivity;
+  bool _isPlaying;
+  Duration _currentPlayDuration;
+  Duration _currentPauseDuration;
+  int _minPauseVibrationSeconds;
+  int _minPlayVibrationSeconds;
+  final List<DateWork> _listDateWork;
+  Timer? _timer;
+  DateTime? _lastTickTime;
+  DateTime? _sessionStartTime;
+  bool _hasVibratedForPlayThreshold;
+  bool _hasVibratedForPauseThreshold;
 
-/// Helper extension to find first element or null
-extension _FirstWhereOrNullExtension<E> on Iterable<E> {
-  E? firstWhereOrNull(bool Function(E element) test) {
-    for (E element in this) {
-      if (test(element)) {
-        return element;
+  // --- Constructor and Initializer List ---
+  ActivityViewModel()
+      : _activities = [
+    Activity(id: '1', name: 'Work'),
+    Activity(id: '2', name: 'Break'),
+    Activity(id: '3', name: 'Study'),
+  ],
+        _selectedActivity = null, // Will be set to _activities.first in body
+        _isPlaying = false,
+        _currentPlayDuration = Duration.zero,
+        _currentPauseDuration = Duration.zero,
+        _minPauseVibrationSeconds = 1 * 60, // Default 1 minute
+        _minPlayVibrationSeconds = 5 * 60, // Default 5 minutes
+        _listDateWork = [],
+        _hasVibratedForPlayThreshold = false,
+        _hasVibratedForPauseThreshold = false {
+    _selectedActivity = _activities.first; // Set a default selected activity
+  }
+
+  // --- Public Getters ---
+  List<Activity> get activities => List.unmodifiable(_activities);
+  Activity? get selectedActivity => _selectedActivity;
+  bool get isPlaying => _isPlaying;
+  Duration get currentPlayDuration => _currentPlayDuration;
+  Duration get currentPauseDuration => _currentPauseDuration;
+  int get minPauseVibrationMinutes => (_minPauseVibrationSeconds / 60).round();
+  int get minPlayVibrationMinutes => (_minPlayVibrationSeconds / 60).round();
+  List<DateWork> get listDateWork => List.unmodifiable(_listDateWork);
+
+  // Formatted duration for display
+  String get formattedCurrentPlayDuration {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = _currentPlayDuration.inMinutes.remainder(60).toString().padLeft(2, "0");
+    String twoDigitSeconds = _currentPlayDuration.inSeconds.remainder(60).toString().padLeft(2, "0");
+    return "${_currentPlayDuration.inHours.toString().padLeft(2, "0")}:$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  String get formattedCurrentPauseDuration {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = _currentPauseDuration.inMinutes.remainder(60).toString().padLeft(2, "0");
+    String twoDigitSeconds = _currentPauseDuration.inSeconds.remainder(60).toString().padLeft(2, "0");
+    return "${_currentPauseDuration.inHours.toString().padLeft(2, "0")}:$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  // --- Public Methods (from requirements) ---
+
+  /// Selects a new activity. If a timer session was in progress (playing or paused),
+  /// it stops and logs the current session as if the 'Stop' button was clicked.
+  void selectActivity(Activity item) {
+    if (_selectedActivity != item) {
+      // If a session was active (either playing or paused),
+      // stop it and log it as if 'Stop' was clicked for the old activity.
+      if (_sessionStartTime != null) {
+        _stopAndLogCurrentSession();
       }
+      // Then, reset all timer-related state variables for the new activity.
+      // This also ensures _isPlaying is false and durations are zero.
+      _resetCurrentSession();
+
+      _selectedActivity = item; // Set the new selected activity
+      notifyListeners(); // Notify listeners about the change.
     }
-    return null;
-  }
-}
-
-class CalendarPageViewModel extends ChangeNotifier {
-  final CalendarPageModel _model;
-  DateTime _currentMonth; // Represents the first day of the month being viewed.
-
-  // Keys for SharedPreferences
-  static const String _eventsKey = 'calendar_events';
-  static const String _objectivesKey = 'calendar_objectives';
-  static const String _eventNamesKey = 'calendar_event_names';
-
-  CalendarPageViewModel({
-    CalendarPageModel? model,
-  })  : _model = model ?? CalendarPageModel(),
-        _currentMonth = DateTime.now().copyWith(
-            day: 1,
-            hour: 0,
-            minute: 0,
-            second: 0,
-            millisecond: 0,
-            microsecond: 0) {
-    _loadData(); // Load data when ViewModel is created
   }
 
-  // Load data from SharedPreferences
-  Future<void> _loadData() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    // Load Events
-    final String? eventsJson = prefs.getString(_eventsKey);
-    if (eventsJson != null) {
-      final List<dynamic> decoded = json.decode(eventsJson) as List<dynamic>;
-      _model.listEvent = decoded
-          .map<Event>(
-              (dynamic item) => Event.fromJson(item as Map<String, dynamic>))
-          .toList();
-      _model.listEvent
-          .sort((Event a, Event b) => a.dateTime.compareTo(b.dateTime));
+  /// Toggles the play/pause state of the timer.
+  void clickPlayOrPause() {
+    if (_selectedActivity == null) {
+      // Should not happen with default selection, but as a safeguard.
+      return;
     }
 
-    // Load ObjectiveWeeks
-    final String? objectivesJson = prefs.getString(_objectivesKey);
-    if (objectivesJson != null) {
-      final List<dynamic> decoded = json.decode(objectivesJson) as List<dynamic>;
-      _model.listObjWeek = decoded
-          .map<ObjectiveWeek>((dynamic item) =>
-          ObjectiveWeek.fromJson(item as Map<String, dynamic>))
-          .toList();
-      _model.listObjWeek.sort(
-              (ObjectiveWeek a, ObjectiveWeek b) => a.anyDayOfWeek.compareTo(b.anyDayOfWeek));
-    }
+    _isPlaying = !_isPlaying;
 
-    // Load Event Names
-    final String? eventNamesJson = prefs.getString(_eventNamesKey);
-    if (eventNamesJson != null) {
-      final List<dynamic> decoded = json.decode(eventNamesJson) as List<dynamic>;
-      _model.listEventName = decoded.map<String>((dynamic item) => item as String).toList();
-      _model.listEventName.sort();
+    if (_isPlaying) {
+      // Switched to Play
+      _startTimer(); // Ensure timer is running to increment duration
+      _lastTickTime = DateTime.now();
+      _sessionStartTime ??= DateTime.now(); // Set session start time if not already set
+      _hasVibratedForPauseThreshold = false; // Reset pause vibration flag for new segment
+
+      // Reset play and pause durations when re-clicking play, as per request.
+      _currentPlayDuration = Duration.zero;
+      _currentPauseDuration = Duration.zero;
+      _hasVibratedForPlayThreshold = false; // Reset play vibration flag to allow re-vibration for new segment
     } else {
-      // If no names saved, re-initialize with defaults
-      _model.listEventName = <String>[
-        "Meeting",
-        "Appointment",
-        "Workout",
-        "Study Session",
-        "Project Deadline"
-      ];
+      // Switched to Pause
+      // Timer should continue running, but will now accumulate _currentPauseDuration
+      if (_lastTickTime != null) {
+        // Capture any elapsed play time before switching to pause
+        _currentPlayDuration += DateTime.now().difference(_lastTickTime!);
+      }
+      _lastTickTime = DateTime.now(); // Update lastTickTime for pause duration calculation
+      _hasVibratedForPlayThreshold = false; // Reset play vibration flag for new segment
     }
-    notifyListeners(); // Notify UI after data is loaded
-  }
-
-  // Save data to SharedPreferences
-  Future<void> _saveData() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    // Save Events
-    final List<Map<String, dynamic>> eventsJson =
-    _model.listEvent.map<Map<String, dynamic>>((Event e) => e.toJson()).toList();
-    await prefs.setString(_eventsKey, json.encode(eventsJson));
-
-    // Save ObjectiveWeeks
-    final List<Map<String, dynamic>> objectivesJson =
-    _model.listObjWeek.map<Map<String, dynamic>>((ObjectiveWeek obj) => obj.toJson()).toList();
-    await prefs.setString(_objectivesKey, json.encode(objectivesJson));
-
-    // Save Event Names
-    final List<String> eventNamesJson = _model.listEventName;
-    await prefs.setString(_eventNamesKey, json.encode(eventNamesJson));
-  }
-
-  DateTime get currentMonth => _currentMonth;
-
-  // added +-1 of current month
-  void currentMonthAdd(int monthAdded) {
-    _currentMonth = _addDuration(_currentMonth, month: monthAdded);
     notifyListeners();
   }
 
-  DateTime _addDuration(DateTime date, {Duration? duration, int? month, int? year}) {
-    DateTime dateReturned = date;
-    if (duration != null) {
-      dateReturned = dateReturned.add(duration);
+  /// Sets the minimum pause duration in minutes before a vibration alert occurs.
+  void onChangedMinPauseVibration(int min) {
+    _minPauseVibrationSeconds = min * 60;
+    _hasVibratedForPauseThreshold = false; // Allow re-vibration if threshold changes
+    notifyListeners();
+  }
+
+  /// Sets the minimum play duration in minutes before a vibration alert occurs.
+  void onChangedMinPlayVibration(int min) {
+    _minPlayVibrationSeconds = min * 60;
+    _hasVibratedForPlayThreshold = false; // Allow re-vibration if threshold changes
+    notifyListeners();
+  }
+
+  /// Stops the current timer session and logs it.
+  void stop() {
+    if (_sessionStartTime != null && _selectedActivity != null) {
+      _stopAndLogCurrentSession();
     }
-    if (month != null) {
-      int monthCurrent = dateReturned.month;
-      dateReturned = DateTime(dateReturned.year, monthCurrent + month,
-          dateReturned.day, dateReturned.hour, dateReturned.minute, dateReturned.second, dateReturned.millisecond);
-    }
-    if (year != null) {
-      int yearCurrent = dateReturned.year;
-      dateReturned = DateTime(yearCurrent + year, dateReturned.month,
-          dateReturned.day, dateReturned.hour, dateReturned.minute, dateReturned.second, dateReturned.millisecond);
-    }
-
-    return dateReturned;
+    _resetCurrentSession();
+    notifyListeners();
   }
 
-  // --- Event Management ---
-
-  List<Event> getEventsForDay(DateTime dateOfDay) {
-    return _model.listEvent
-        .where((Event event) =>
-    event.dateTime.year == dateOfDay.year &&
-        event.dateTime.month == dateOfDay.month &&
-        event.dateTime.day == dateOfDay.day)
-        .toList();
+  /// Resets the current timer session to zero without logging it.
+  void zero() {
+    _resetCurrentSession();
+    notifyListeners();
   }
 
-  void addEvent(Event event) {
-    _model.listEvent.add(event);
-    _model.listEvent.sort((Event a, Event b) => a.dateTime.compareTo(b.dateTime)); // Keep sorted
-    addEventNameSuggestion(event.name); // Add name to suggestions, this also notifies and saves
-    _saveData();
-    notifyListeners(); // Keep this for UI updates after the main change
-  }
+  // --- Internal Helper Methods ---
 
-  // Helper to check if a name is still used by other events, excluding a specific one
-  bool _isEventNameStillUsedExcludingEvent(String name, Event excludedEvent) {
-    return _model.listEvent.any((Event e) => e.name == name && e != excludedEvent);
-  }
-
-  void updateEvent(Event oldEvent, Event newEvent) {
-    final int index = _model.listEvent.indexOf(oldEvent);
-    if (index != -1) {
-      // If the event name has changed, manage suggestions
-      if (oldEvent.name != newEvent.name) {
-        // Check if the old name is still used by any other event (excluding the one being updated)
-        if (!_isEventNameStillUsedExcludingEvent(oldEvent.name, oldEvent)) {
-          _model.listEventName.remove(oldEvent.name);
-          _model.listEventName.sort(); // Keep sorted
-          _saveData(); // Save if event names change
+  /// Starts or restarts the periodic timer.
+  void _startTimer() {
+    _timer?.cancel(); // Cancel any existing timer
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      final now = DateTime.now();
+      if (_lastTickTime != null) {
+        final elapsed = now.difference(_lastTickTime!);
+        if (_isPlaying) {
+          _currentPlayDuration += elapsed;
+          _checkVibration(_currentPlayDuration, _minPlayVibrationSeconds, true);
+        } else {
+          // This block now correctly executes when _isPlaying is false (paused)
+          _currentPauseDuration += elapsed;
+          _checkVibration(_currentPauseDuration, _minPauseVibrationSeconds, false);
         }
-        // Add the new name to suggestions (it will check for existence internally)
-        addEventNameSuggestion(newEvent.name); // This also notifies and saves if new
       }
+      _lastTickTime = now;
+      notifyListeners();
+    });
+  }
 
-      _model.listEvent[index] = newEvent;
-      _model.listEvent.sort((Event a, Event b) => a.dateTime.compareTo(b.dateTime));
-      _saveData(); // Save after event list modification
+  /// Stops the periodic timer.
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  /// Checks if vibration thresholds are met and triggers haptic feedback.
+  void _checkVibration(Duration currentDuration, int thresholdSeconds, bool isPlay) {
+    if (currentDuration.inSeconds >= thresholdSeconds) {
+      if ((isPlay && !_hasVibratedForPlayThreshold) || (!isPlay && !_hasVibratedForPauseThreshold)) {
+        HapticFeedback.heavyImpact(); // Strong vibration
+        if (isPlay) {
+          _hasVibratedForPlayThreshold = true;
+        } else {
+          _hasVibratedForPauseThreshold = true;
+        }
+      }
+    } else {
+      // Reset vibration flags if duration drops below threshold (e.g., threshold changed to higher)
+      if (isPlay) {
+        _hasVibratedForPlayThreshold = false;
+      } else {
+        _hasVibratedForPauseThreshold = false;
+      }
+    }
+  }
+
+  /// Stops the timer and logs the current session to `_listDateWork`.
+  void _stopAndLogCurrentSession() {
+    _stopTimer();
+    // Calculate final duration based on current state
+    if (_lastTickTime != null) {
+      final elapsedSinceLastTick = DateTime.now().difference(_lastTickTime!);
+      // Ensure the correct duration is added before logging,
+      // regardless of whether it was currently playing or paused when stopped.
+      if (_isPlaying) {
+        _currentPlayDuration += elapsedSinceLastTick;
+      } else {
+        _currentPauseDuration += elapsedSinceLastTick; // Also account for pause time if stopped while paused.
+      }
+    }
+
+    if (_sessionStartTime != null && _selectedActivity != null) {
+      _listDateWork.add(
+        DateWork(
+          activityName: _selectedActivity!.name,
+          startTime: _sessionStartTime!,
+          endTime: DateTime.now(),
+          duration: _currentPlayDuration, // Log the total play duration for the session
+        ),
+      );
+    }
+  }
+
+  /// Resets all timer-related properties for the current session.
+  void _resetCurrentSession() {
+    _stopTimer();
+    _isPlaying = false;
+    _currentPlayDuration = Duration.zero;
+    _currentPauseDuration = Duration.zero;
+    _lastTickTime = null;
+    _sessionStartTime = null;
+    _hasVibratedForPlayThreshold = false;
+    _hasVibratedForPauseThreshold = false;
+  }
+
+  // --- Dispose ---
+  @override
+  void dispose() {
+    _stopTimer();
+    super.dispose();
+  }
+
+  // --- Activity Management (Add/Remove) ---
+
+  /// Adds a new activity to the list.
+  void addActivity(String name) {
+    final newActivity = Activity(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name);
+    _activities.add(newActivity);
+    notifyListeners();
+  }
+
+  /// Removes an activity from the list. Ensures at least one activity remains.
+  void removeActivity(Activity activity) {
+    if (_activities.length > 1) {
+      // Ensure at least one activity remains
+      _activities.remove(activity);
+      if (_selectedActivity == activity) {
+        _selectedActivity = _activities.first;
+        _resetCurrentSession(); // Reset if the removed activity was selected
+      }
       notifyListeners();
     }
   }
+}
 
-  void deleteEvent(Event event) {
-    final String eventNameToRemove = event.name;
-    _model.listEvent.remove(event);
+// --- MAIN APPLICATION WIDGETS ---
 
-    // After removing the event, check if its name is still present in any other event
-    final bool nameStillInUse = _model.listEvent.any((Event e) => e.name == eventNameToRemove);
-    if (!nameStillInUse) {
-      _model.listEventName.remove(eventNameToRemove);
-      _model.listEventName.sort(); // Keep sorted
-      _saveData(); // Save if event names change
-    }
-    _saveData(); // Save after event list modification
-    notifyListeners();
-  }
+void main() {
+  runApp(const TimerApp());
+}
 
-  // --- Objective Week Management ---
+class TimerApp extends StatelessWidget {
+  const TimerApp({super.key});
 
-  ObjectiveWeek? getObjectiveWeekForWeek(DateTime dayInWeek) {
-    final DateTime startOfWeek = _getStartOfWeek(dayInWeek);
-    return _model.listObjWeek.firstWhereOrNull(
-            (ObjectiveWeek obj) => _getStartOfWeek(obj.anyDayOfWeek) == startOfWeek);
-  }
-
-  void addObjectiveWeek(ObjectiveWeek obj) {
-    // Ensure only one objective per week, update if exists
-    final int existingIndex = _model.listObjWeek.indexWhere(
-            (ObjectiveWeek e) => _getStartOfWeek(e.anyDayOfWeek) == _getStartOfWeek(obj.anyDayOfWeek));
-    if (existingIndex != -1) {
-      _model.listObjWeek[existingIndex] = obj;
-    } else {
-      _model.listObjWeek.add(obj);
-      _model.listObjWeek.sort((ObjectiveWeek a, ObjectiveWeek b) =>
-          a.anyDayOfWeek.compareTo(b.anyDayOfWeek)); // Keep sorted
-    }
-    _saveData(); // Save after objective list modification
-    notifyListeners();
-  }
-
-  // This method is implicitly handled by addObjectiveWeek's logic
-  // void updateObjectiveWeek(ObjectiveWeek oldObj, ObjectiveWeek newObj) {
-  //   final int index = _model.listObjWeek.indexOf(oldObj);
-  //   if (index != -1) {
-  //     _model.listObjWeek[index] = newObj;
-  //     _model.listObjWeek.sort((ObjectiveWeek a, ObjectiveWeek b) =>
-  //         a.anyDayOfWeek.compareTo(b.anyDayOfWeek));
-  //     _saveData(); // Save after objective list modification
-  //     notifyListeners();
-  //   }
-  // }
-
-  void deleteObjectiveWeek(ObjectiveWeek obj) {
-    _model.listObjWeek.remove(obj);
-    _saveData(); // Save after objective list modification
-    notifyListeners();
-  }
-
-  // Helper to get the start of the week (Monday)
-  DateTime _getStartOfWeek(DateTime date) {
-    int daysToMonday = date.weekday - DateTime.monday;
-    return date.subtract(Duration(days: daysToMonday)).copyWith(
-        hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0);
-  }
-
-  // --- Event Name Suggestions ---
-
-  List<String> get eventNameSuggestions =>
-      UnmodifiableListView<String>(_model.listEventName);
-
-  void addEventNameSuggestion(String name) {
-    if (!_model.listEventName.contains(name) && name.trim().isNotEmpty) {
-      _model.listEventName.add(name);
-      _model.listEventName.sort(); // Keep sorted
-      _saveData(); // Save after event name suggestions change
-      notifyListeners(); // Only notify if a new suggestion is added
-    }
-  }
-
-  // --- Calendar Grid Logic ---
-
-  List<List<DateTime?>> getWeeksInMonth() {
-    final List<List<DateTime?>> weeks = <List<DateTime?>>[];
-    final DateTime firstDayOfMonth = _currentMonth;
-    final int daysInMonth =
-    DateUtils.getDaysInMonth(firstDayOfMonth.year, firstDayOfMonth.month);
-
-    // Calculate the number of leading empty cells to align with Monday
-    // Dart's DateTime.weekday: Monday=1, Sunday=7
-    int startWeekday = firstDayOfMonth.weekday; // 1 for Monday, ..., 7 for Sunday
-    int daysToPrepend = (startWeekday - 1);
-
-    List<DateTime?> currentWeek = List<DateTime?>.filled(7, null);
-    int dayCount = 1;
-
-    // Fill leading empty days
-    for (int i = 0; i < daysToPrepend; i++) {
-      currentWeek[i] = null;
-    }
-
-    // Fill days of the month for the first week
-    for (int i = daysToPrepend; i < 7; i++) {
-      if (dayCount <= daysInMonth) {
-        currentWeek[i] = firstDayOfMonth.copyWith(day: dayCount);
-        dayCount++;
-      }
-    }
-    weeks.add(currentWeek);
-
-    // Fill remaining weeks
-    while (dayCount <= daysInMonth) {
-      currentWeek = List<DateTime?>.filled(7, null);
-      for (int i = 0; i < 7; i++) {
-        if (dayCount <= daysInMonth) {
-          currentWeek[i] = firstDayOfMonth.copyWith(day: dayCount);
-          dayCount++;
-        } else {
-          currentWeek[i] = null; // Fill remaining with nulls
-        }
-      }
-      weeks.add(currentWeek);
-    }
-    return weeks;
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Activity Timer',
+      theme: ThemeData(
+        primarySwatch: Colors.blueGrey,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        useMaterial3: true,
+      ),
+      home: ChangeNotifierProvider<ActivityViewModel>(
+        create: (context) => ActivityViewModel(),
+        builder: (context, child) {
+          return const MainTimerScreen();
+        },
+      ),
+    );
   }
 }
 
-class CalendarPageView extends StatelessWidget {
-  const CalendarPageView({super.key});
+class MainTimerScreen extends StatefulWidget {
+  const MainTimerScreen({super.key});
+
+  @override
+  State<MainTimerScreen> createState() => _MainTimerScreenState();
+}
+
+class _MainTimerScreenState extends State<MainTimerScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Consumer<CalendarPageViewModel>(
-          builder: (BuildContext context, CalendarPageViewModel viewModel, Widget? child) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios),
-                  onPressed: () {
-                    viewModel.currentMonthAdd(-1);
-                  },
-                ),
-                Text(
-                  '${_getMonthName(viewModel.currentMonth.month)} ${viewModel.currentMonth.year}',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.arrow_forward_ios),
-                  onPressed: () {
-                    viewModel.currentMonthAdd(1);
-                  },
-                ),
-              ],
-            );
-          },
+        title: const Text('Activity Timer'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const <Widget>[
+            Tab(icon: Icon(Icons.timer), text: 'Timer'),
+            Tab(icon: Icon(Icons.history), text: 'History'),
+          ],
         ),
       ),
-      body: Consumer<CalendarPageViewModel>(
-        builder: (BuildContext context, CalendarPageViewModel viewModel, Widget? child) {
-          final List<List<DateTime?>> weeks = viewModel.getWeeksInMonth();
-          final DateTime today = DateTime.now();
-
-          return Column(
-            children: <Widget>[
-              _buildWeekDaysHeader(),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: weeks.length,
-                  itemBuilder: (BuildContext context, int weekIndex) {
-                    final List<DateTime?> week = weeks[weekIndex];
-                    final DateTime? firstDayInWeek =
-                    week.firstWhereOrNull((DateTime? day) => day != null);
-                    // Determine the start of the current calendar week for ObjectiveWeek
-                    final DateTime startOfWeek = firstDayInWeek != null
-                        ? viewModel._getStartOfWeek(firstDayInWeek)
-                        : DateTime.now().copyWith(
-                        hour: 0,
-                        minute: 0,
-                        second: 0,
-                        millisecond: 0,
-                        microsecond: 0); // Fallback
-
-                    final ObjectiveWeek? weeklyObjective =
-                    viewModel.getObjectiveWeekForWeek(startOfWeek);
-
-                    IconData objectiveIcon;
-                    Color objectiveIconColor;
-                    String objectiveTooltip;
-
-                    if (weeklyObjective != null && weeklyObjective.objective.isNotEmpty) {
-                      if (weeklyObjective.realization.isNotEmpty) {
-                        objectiveIcon = Icons.check_circle;
-                        objectiveIconColor = Colors.green.shade700;
-                        objectiveTooltip =
-                        'Weekly Objective Realized: ${weeklyObjective.objective}\nRealization: ${weeklyObjective.realization}';
-                      } else {
-                        objectiveIcon = Icons.edit_note;
-                        objectiveIconColor = Colors.orange.shade700;
-                        objectiveTooltip =
-                        'Weekly Objective Pending: ${weeklyObjective.objective}';
-                      }
-                    } else {
-                      objectiveIcon = Icons.edit_note;
-                      objectiveIconColor = Colors.grey;
-                      objectiveTooltip = 'Set Weekly Objective';
-                    }
-
-                    return Column(
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            ...week.map<Widget>((DateTime? day) {
-                              return Expanded(
-                                child: DayTile(
-                                  day: day,
-                                  isToday: day != null &&
-                                      day.year == today.year &&
-                                      day.month == today.month &&
-                                      day.day == today.day,
-                                  events: day != null ? viewModel.getEventsForDay(day) : <Event>[],
-                                  onTap: (DateTime? selectedDay) {
-                                    if (selectedDay != null) {
-                                      final List<Event> eventsForSelectedDay =
-                                      viewModel.getEventsForDay(selectedDay);
-                                      if (eventsForSelectedDay.isEmpty) {
-                                        _showEventManagementDialog(
-                                            context, viewModel, selectedDay);
-                                      } else {
-                                        _showDayEventsOverviewBottomSheet(
-                                            context, viewModel, selectedDay);
-                                      }
-                                    }
-                                  },
-                                ),
-                              );
-                            }).toList(),
-                            // Objective Week Button
-                            SizedBox(
-                              width: 48.0, // Fixed width for the button column
-                              child: IconButton(
-                                icon: Icon(objectiveIcon, color: objectiveIconColor),
-                                tooltip: objectiveTooltip,
-                                onPressed: firstDayInWeek != null
-                                    ? () {
-                                  _showObjectiveWeekManagementDialog(
-                                      context, viewModel, startOfWeek);
-                                }
-                                    : null, // Disable if no valid days in week
-                              ),
-                            ),
-                          ],
-                        ),
-                        // Add a subtle divider between weeks for visual separation
-                        if (weekIndex < weeks.length - 1)
-                          const Divider(height: 1, thickness: 0.5, indent: 8, endIndent: 8),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showEventManagementDialog(
-            context, context.read<CalendarPageViewModel>(), DateTime.now()),
-        label: const Text('Add Event'),
-        icon: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Widget _buildWeekDaysHeader() {
-    final List<String> weekdays = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: <Widget>[
-          ...weekdays.map<Widget>((String day) {
-            return Expanded(
-              child: Center(
-                child: Text(
-                  day,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            );
-          }).toList(),
-          const SizedBox(width: 48.0), // Space for Objective Week Button
+      body: TabBarView(
+        controller: _tabController,
+        children: const <Widget>[
+          TimerTabContent(),
+          HistoryTabContent(),
         ],
       ),
     );
   }
+}
 
-  static String _getMonthName(int month) {
-    const List<String> monthNames = <String>[
-      '',
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December'
-    ];
-    return monthNames[month];
-  }
+/// Content for the Timer tab, containing activity selection, timer display, controls, and vibration settings.
+class TimerTabContent extends StatelessWidget {
+  const TimerTabContent({super.key});
 
-  String _formatTime(DateTime dateTime) {
-    return '${dateTime.toLocal().hour.toString().padLeft(2, '0')}:${dateTime.toLocal().minute.toString().padLeft(2, '0')}';
-  }
-
-  void _showEventManagementDialog(BuildContext context, CalendarPageViewModel viewModel,
-      DateTime initialDate, {Event? eventToEdit}) {
+  void _showAddActivityDialog(BuildContext context, ActivityViewModel viewModel) {
+    final TextEditingController controller = TextEditingController();
     showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
-        final TextEditingController nameController =
-        TextEditingController(text: eventToEdit?.name ?? '');
-        final TextEditingController descriptionController = TextEditingController(text: eventToEdit?.description ?? '');
-        DateTime selectedDate = eventToEdit?.dateTime ?? initialDate;
-        TimeOfDay selectedTime = eventToEdit != null
-            ? TimeOfDay.fromDateTime(eventToEdit.dateTime)
-            : TimeOfDay.fromDateTime(initialDate);
-        int selectedColor = eventToEdit?.color ?? Colors.blue.value;
-
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: Text(eventToEdit == null ? 'Add Event' : 'Edit Event'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Autocomplete<String>(
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        // Keep the external nameController in sync with Autocomplete's internal TextField input.
-                        // This ensures `nameController.text` always holds the current displayed value.
-                        nameController.text = textEditingValue.text;
-
-                        if (textEditingValue.text.isEmpty) {
-                          // Show all suggestions when the input is empty
-                          return viewModel.eventNameSuggestions;
-                        }
-                        return viewModel.eventNameSuggestions.where((String option) {
-                          return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                        });
-                      },
-                      onSelected: (String selection) {
-                        // When a suggestion is selected, update the external nameController.
-                        nameController.text = selection;
-                      },
-                      fieldViewBuilder: (BuildContext context,
-                          TextEditingController textEditingController,
-                          FocusNode focusNode,
-                          void Function() onFieldSubmitted) {
-                        // Ensure the Autocomplete's internal controller displays the initial value
-                        // from `nameController` when the dialog first appears for editing.
-                        // This check prevents an infinite loop if the values are already in sync.
-                        if (textEditingController.text != nameController.text) {
-                          textEditingController.text = nameController.text;
-                        }
-
-                        return TextField(
-                          controller: textEditingController,
-                          focusNode: focusNode,
-                          onSubmitted: (String value) => onFieldSubmitted(),
-                          decoration: const InputDecoration(labelText: 'Event Name'),
-                        );
-                      },
-                      optionsViewBuilder: (BuildContext context,
-                          AutocompleteOnSelected<String> onSelected,
-                          Iterable<String> options) {
-                        return Align(
-                          alignment: Alignment.topLeft,
-                          child: Material(
-                            elevation: 4.0,
-                            child: SizedBox(
-                              height: 200.0, // Fixed height for the dropdown
-                              child: ListView.builder(
-                                padding: EdgeInsets.zero,
-                                itemCount: options.length,
-                                itemBuilder: (BuildContext context, int index) {
-                                  final String option = options.elementAt(index);
-                                  return GestureDetector(
-                                    onTap: () {
-                                      onSelected(option);
-                                      // Ensure nameController is updated here too, in case onSelected doesn't trigger a rebuild
-                                      nameController.text = option;
-                                    },
-                                    child: ListTile(
-                                      title: Text(option),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    TextField(
-                      controller: descriptionController,
-                      decoration: const InputDecoration(labelText: 'Description'),
-                      maxLines: 3,
-                    ),
-                    ListTile(
-                      title: Text('Date: ${selectedDate.toLocal().toString().split(' ')[0]}'),
-                      trailing: const Icon(Icons.calendar_today),
-                      onTap: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2101),
-                        );
-                        if (picked != null && picked != selectedDate) {
-                          setState(() {
-                            selectedDate = picked;
-                          });
-                        }
-                      },
-                    ),
-                    ListTile(
-                      title: Text('Time: ${selectedTime.format(context)}'),
-                      trailing: const Icon(Icons.access_time),
-                      onTap: () async {
-                        final TimeOfDay? picked = await showTimePicker(
-                          context: context,
-                          initialTime: selectedTime,
-                        );
-                        if (picked != null && picked != selectedTime) {
-                          setState(() {
-                            selectedTime = picked;
-                          });
-                        }
-                      },
-                    ),
-                    _ColorPicker(
-                      selectedColor: selectedColor,
-                      onColorSelected: (int color) {
-                        setState(() {
-                          selectedColor = color;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: <Widget>[
-                if (eventToEdit != null)
-                  TextButton(
-                    onPressed: () {
-                      viewModel.deleteEvent(eventToEdit);
-                      Navigator.of(dialogContext).pop();
-                    },
-                    child: const Text('Delete'),
-                  ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Event name cannot be empty')),
-                      );
-                      return;
-                    }
-                    final Event newEvent = Event(
-                      dateTime: selectedDate.copyWith(
-                        hour: selectedTime.hour,
-                        minute: selectedTime.minute,
-                        second: 0,
-                        millisecond: 0,
-                        microsecond: 0,
-                      ),
-                      name: nameController.text.trim(),
-                      description: descriptionController.text.trim(),
-                      color: selectedColor,
-                    );
-                    if (eventToEdit == null) {
-                      viewModel.addEvent(newEvent);
-                    } else {
-                      viewModel.updateEvent(eventToEdit, newEvent);
-                    }
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: Text(eventToEdit == null ? 'Add' : 'Save'),
-                ),
-              ],
-            );
-          },
+        return AlertDialog(
+          title: const Text('Add New Activity'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(hintText: 'Activity Name'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            ElevatedButton(
+              child: const Text('Add'),
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  viewModel.addActivity(controller.text.trim());
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+            ),
+          ],
         );
       },
     );
   }
 
-  void _showDayEventsOverviewBottomSheet(
-      BuildContext context, CalendarPageViewModel viewModel, DateTime selectedDate) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true, // Allow the sheet to take more than 50% height
-      builder: (BuildContext sheetContext) {
-        // Provide the existing viewModel instance to this new route's context
-        return ChangeNotifierProvider<CalendarPageViewModel>.value(
-          value: viewModel, // Use the viewModel instance passed to the function
-          builder: (BuildContext context, Widget? child) => // Use builder for correct context
-          Padding(
-            padding:
-            EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom), // Adjust for keyboard
-            child: SizedBox(
-              height: MediaQuery.of(sheetContext).size.height * 0.75, // 75% of screen height
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = context.watch<ActivityViewModel>(); // Watch for changes
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // Activity Selector
+          Card(
+            margin: const EdgeInsets.only(bottom: 16.0),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        Text(
-                          'Events on ${selectedDate.day} ${CalendarPageView._getMonthName(selectedDate.month)} ${selectedDate.year}',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle),
-                          tooltip: 'Add New Event',
-                          onPressed: () {
-                            Navigator.of(sheetContext).pop(); // Close current sheet
-                            _showEventManagementDialog(context, viewModel,
-                                selectedDate); // Use the new context from builder
-                          },
-                        ),
-                      ],
+                children: [
+                  const Text('Select Activity:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8.0),
+                  DropdownButton<Activity>(
+                    isExpanded: true,
+                    value: viewModel.selectedActivity,
+                    items: viewModel.activities.map<DropdownMenuItem<Activity>>((Activity activity) {
+                      return DropdownMenuItem<Activity>(
+                        value: activity,
+                        child: Text(activity.name),
+                      );
+                    }).toList(),
+                    onChanged: (Activity? newActivity) {
+                      if (newActivity != null) {
+                        context.read<ActivityViewModel>().selectActivity(newActivity);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16.0),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Activity'),
+                        onPressed: () => _showAddActivityDialog(context, viewModel),
+                      ),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.delete),
+                        label: const Text('Remove Selected'),
+                        onPressed: viewModel.activities.length > 1 && viewModel.selectedActivity != null
+                            ? () {
+                          context.read<ActivityViewModel>().removeActivity(viewModel.selectedActivity!);
+                        }
+                            : null, // Disable if only one activity or no activity selected
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Timer Display
+          Card(
+            margin: const EdgeInsets.only(bottom: 16.0),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Text(
+                    'Current Play Duration:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    viewModel.formattedCurrentPlayDuration,
+                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Expanded(
-                    // Now this Consumer will find the provider from ChangeNotifierProvider.value
-                    child: Consumer<CalendarPageViewModel>(
-                      builder: (BuildContext consumerContext,
-                          CalendarPageViewModel vm,
-                          Widget? consumerChild) {
-                        final List<Event> dailyEvents = vm.getEventsForDay(selectedDate);
-                        if (dailyEvents.isEmpty) {
-                          return const Center(child: Text('No events for this day.'));
-                        }
-                        return ListView.builder(
-                          itemCount: dailyEvents.length,
-                          itemBuilder: (BuildContext listContext, int index) {
-                            final Event event = dailyEvents[index];
-                            return Card(
-                              margin:
-                              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                              elevation: 2,
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Color(event.color),
-                                  radius: 12, // Slightly larger avatar
-                                ),
-                                title: Text(event.name),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    if (event.description.isNotEmpty) Text(event.description),
-                                    Text(
-                                      'Time: ${_formatTime(event.dateTime)}',
-                                      style:
-                                      const TextStyle(fontSize: 12, color: Colors.grey),
-                                    ),
-                                  ],
-                                ),
-                                onTap: () {
-                                  Navigator.of(sheetContext).pop(); // Close the bottom sheet
-                                  _showEventManagementDialog(consumerContext, viewModel,
-                                      selectedDate,
-                                      eventToEdit: event);
-                                },
-                              ),
-                            );
-                          },
-                        );
-                      },
+                  const SizedBox(height: 16.0),
+                  const Text(
+                    'Current Pause Duration:',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    viewModel.formattedCurrentPauseDuration,
+                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        );
-      },
-    );
-  }
 
-  void _showObjectiveWeekManagementDialog(
-      BuildContext context, CalendarPageViewModel viewModel, DateTime weekStartDate) {
-    ObjectiveWeek? existingObjective = viewModel.getObjectiveWeekForWeek(weekStartDate);
-    final TextEditingController objectiveController =
-    TextEditingController(text: existingObjective?.objective ?? '');
-    final TextEditingController realizationController =
-    TextEditingController(text: existingObjective?.realization ?? '');
-
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(existingObjective == null ? 'Add Weekly Objective' : 'Edit Weekly Objective'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text('For week starting: ${weekStartDate.toLocal().toString().split(' ')[0]}'),
-                TextField(
-                  controller: objectiveController,
-                  decoration: const InputDecoration(labelText: 'Objective'),
-                  maxLines: 3,
-                ),
-                TextField(
-                  controller: realizationController,
-                  decoration: const InputDecoration(labelText: 'Realization/Notes'),
-                  maxLines: 3,
-                ),
-              ],
+          // Controls
+          Card(
+            margin: const EdgeInsets.only(bottom: 16.0),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: <Widget>[
+                  ElevatedButton.icon(
+                    icon: Icon(viewModel.isPlaying ? Icons.pause : Icons.play_arrow),
+                    label: Text(viewModel.isPlaying ? 'Pause' : 'Play'),
+                    onPressed: () => context.read<ActivityViewModel>().clickPlayOrPause(),
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.stop),
+                    label: const Text('Stop'),
+                    onPressed: () => context.read<ActivityViewModel>().stop(),
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Zero'),
+                    onPressed: () => context.read<ActivityViewModel>().zero(),
+                  ),
+                ],
+              ),
             ),
           ),
-          actions: <Widget>[
-            if (existingObjective != null)
-              TextButton(
-                onPressed: () {
-                  viewModel.deleteObjectiveWeek(existingObjective);
-                  Navigator.of(dialogContext).pop();
-                },
-                child: const Text('Delete'),
+
+          // Vibration Settings
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text('Vibration Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16.0),
+                  Text(
+                      'Vibrate after ${viewModel.minPlayVibrationMinutes} minutes of Play'),
+                  Slider(
+                    value: viewModel.minPlayVibrationMinutes.toDouble(),
+                    min: 1,
+                    max: 60,
+                    divisions: 59,
+                    label: '${viewModel.minPlayVibrationMinutes} min',
+                    onChanged: (double value) {
+                      context.read<ActivityViewModel>().onChangedMinPlayVibration(value.toInt());
+                    },
+                  ),
+                  const SizedBox(height: 16.0),
+                  Text(
+                      'Vibrate after ${viewModel.minPauseVibrationMinutes} minutes of Pause'),
+                  Slider(
+                    value: viewModel.minPauseVibrationMinutes.toDouble(),
+                    min: 1,
+                    max: 60,
+                    divisions: 59,
+                    label: '${viewModel.minPauseVibrationMinutes} min',
+                    onChanged: (double value) {
+                      context.read<ActivityViewModel>().onChangedMinPauseVibration(value.toInt());
+                    },
+                  ),
+                ],
               ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
             ),
-            ElevatedButton(
-              onPressed: () {
-                final ObjectiveWeek newObjectiveWeek = ObjectiveWeek(
-                  anyDayOfWeek: weekStartDate,
-                  objective: objectiveController.text.trim(),
-                  realization: realizationController.text.trim(),
-                );
-                viewModel.addObjectiveWeek(newObjectiveWeek); // This method handles add/update
-                Navigator.of(dialogContext).pop();
-              },
-              child: Text(existingObjective == null ? 'Add' : 'Save'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Content for the History tab, displaying a list of logged work sessions.
+class HistoryTabContent extends StatelessWidget {
+  const HistoryTabContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = context.watch<ActivityViewModel>(); // Watch for changes
+
+    if (viewModel.listDateWork.isEmpty) {
+      return const Center(
+        child: Text(
+          'No activity sessions logged yet.',
+          style: TextStyle(fontSize: 18.0, color: Colors.grey),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16.0),
+      itemCount: viewModel.listDateWork.length,
+      itemBuilder: (BuildContext context, int index) {
+        final dateWork = viewModel.listDateWork[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8.0),
+          child: ListTile(
+            title: Text(dateWork.activityName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              'Started: ${dateWork.formattedStartTime}\nDuration: ${dateWork.formattedDuration}',
             ),
-          ],
+            trailing: dateWork.endTime != null
+                ? Text(
+              'Ended: ${dateWork.endTime!.hour}:${dateWork.endTime!.minute.toString().padLeft(2, "0")}',
+              style: const TextStyle(fontSize: 12.0, color: Colors.grey),
+            )
+                : null,
+            isThreeLine: true, // Allow multiple lines for subtitle
+          ),
         );
       },
-    );
-  }
-}
-
-class DayTile extends StatelessWidget {
-  final DateTime? day;
-  final bool isToday;
-  final List<Event> events;
-  final ValueChanged<DateTime?> onTap;
-
-  const DayTile({
-    super.key,
-    required this.day,
-    required this.isToday,
-    required this.events,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // This context.read is correct because DayTile is built within the Consumer in CalendarPageView's body.
-    final bool isCurrentMonth =
-        day != null && day!.month == context.read<CalendarPageViewModel>().currentMonth.month;
-
-    return GestureDetector(
-      onTap: () => onTap(day),
-      child: Container(
-        height: 80, // Fixed height for each day tile
-        decoration: BoxDecoration(
-          color: isToday ? Colors.blue.withOpacity(0.1) : Colors.transparent,
-          border: Border.all(color: Colors.grey.shade200, width: 0.5),
-        ),
-        child: Column(
-          children: <Widget>[
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 4.0, top: 4.0),
-                child: Text(
-                  day?.day.toString() ?? '',
-                  style: TextStyle(
-                    color: isCurrentMonth ? Colors.black : Colors.grey,
-                    fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: events.isEmpty
-                  ? const SizedBox.shrink()
-                  : SingleChildScrollView(
-                // Allow scrolling if too many events
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: events.take(2).map<Widget>((Event event) {
-                    // Show up to 2 events directly
-                    return Padding(
-                      padding:
-                      const EdgeInsets.symmetric(horizontal: 2.0, vertical: 0.5),
-                      child: Container(
-                        width: double.infinity,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: Color(event.color).withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: Text(
-                          event.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white, fontSize: 8),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            if (events.length > 2) // Indicate more events
-              const Text(
-                '+more',
-                style: TextStyle(fontSize: 8, color: Colors.grey),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ColorPicker extends StatefulWidget {
-  final int selectedColor;
-  final ValueChanged<int> onColorSelected;
-
-  const _ColorPicker({
-    required this.selectedColor,
-    required this.onColorSelected,
-  });
-
-  @override
-  State<_ColorPicker> createState() => _ColorPickerState();
-}
-
-class _ColorPickerState extends State<_ColorPicker> {
-  late int _currentSelectedColor;
-
-  final List<Color> _availableColors = <Color>[
-    Colors.red,
-    Colors.blue,
-    Colors.green,
-    Colors.purple,
-    Colors.orange,
-    Colors.teal,
-    Colors.pink,
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _currentSelectedColor = widget.selectedColor;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8.0),
-          child: Text('Select Color:', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-        Wrap(
-          spacing: 8.0,
-          runSpacing: 8.0,
-          children: _availableColors.map<Widget>((Color color) {
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _currentSelectedColor = color.value;
-                });
-                widget.onColorSelected(color.value);
-              },
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border: _currentSelectedColor == color.value
-                      ? Border.all(color: Colors.black, width: 2)
-                      : null,
-                ),
-                child: _currentSelectedColor == color.value
-                    ? const Icon(Icons.check, color: Colors.white)
-                    : null,
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-}
-
-void main() {
-  runApp(const CalendarApp());
-}
-
-class CalendarApp extends StatelessWidget {
-  const CalendarApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Custom Calendar',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-        ),
-      ),
-      home: ChangeNotifierProvider<CalendarPageViewModel>(
-        create: (BuildContext context) => CalendarPageViewModel(),
-        builder: (BuildContext context, Widget? child) => const CalendarPageView(),
-      ),
     );
   }
 }
