@@ -1,7 +1,62 @@
 import 'dart:async';
+import 'dart:convert'; // For JSON serialization
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For HapticFeedback
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // For persistence
+import 'package:test_unique/HistoryObj.dart';
+
+import 'SelectItem.dart';
+
+
+
+// --- MAIN APPLICATION WIDGETS ---
+
+void main() {
+  HistoryObjFather<Obj1> historyObjFather=HistoryObjFather<Obj1>();
+  List<Obj1> list=[
+    Obj1()..x=1,
+    Obj1()..x=2,
+    Obj1()..x=3,
+  ];
+
+  historyObjFather.addHistory(()=>list[1]);
+  list[1]=Obj1()..x=10;
+
+  historyObjFather.addHistory(()=>list[1]);
+  list[1]=Obj1()..x=100;
+
+  historyObjFather.addHistory(()=>list[1]);
+  list[1]=Obj1()..x=1000; //todo//#ne il primo elemento getItem() ha il riferimento a questo oggetto
+
+  list[1]=historyObjFather.back(list[1])!.item!;
+  print("${list[1].x}");
+  list[1]=historyObjFather.back(list[1])!.item!;
+  print("${list[1].x}");
+  list[1]=historyObjFather.back(list[1])!.item!;
+  print("${list[1].x}");
+  list[1]=historyObjFather.back(list[1])!.item!;
+  print("${list[1].x}");
+
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter binding is initialized for SharedPreferences
+  runApp(const TimerApp());
+  //runApp(SelectItem<int>(0));
+}
+
+class Obj1 implements ICopyT<Obj1>
+{
+  int x=0;
+
+  @override
+  Obj1 copy(Obj1 item) {
+    return Obj1()..x=item.x;
+  }
+
+}
+
+
+
+// ---------------------------------
 
 // --- DATA MODELS ---
 
@@ -19,6 +74,22 @@ class Activity {
 
   @override
   int get hashCode => id.hashCode;
+
+  /// Converts an Activity object to a JSON-compatible Map.
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+    };
+  }
+
+  /// Creates an Activity object from a JSON-compatible Map.
+  factory Activity.fromJson(Map<String, dynamic> json) {
+    return Activity(
+      id: json['id'] as String,
+      name: json['name'] as String,
+    );
+  }
 }
 
 /// Represents a logged work session for an activity.
@@ -48,6 +119,26 @@ class DateWork {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
     return "${startTime.hour}:${twoDigits(startTime.minute)} on ${startTime.day}/${startTime.month}";
   }
+
+  /// Converts a DateWork object to a JSON-compatible Map.
+  Map<String, dynamic> toJson() {
+    return {
+      'activityName': activityName,
+      'startTime': startTime.toIso8601String(),
+      'endTime': endTime?.toIso8601String(),
+      'durationMicroseconds': duration.inMicroseconds,
+    };
+  }
+
+  /// Creates a DateWork object from a JSON-compatible Map.
+  factory DateWork.fromJson(Map<String, dynamic> json) {
+    return DateWork(
+      activityName: json['activityName'] as String,
+      startTime: DateTime.parse(json['startTime'] as String),
+      endTime: json['endTime'] != null ? DateTime.parse(json['endTime'] as String) : null,
+      duration: Duration(microseconds: json['durationMicroseconds'] as int),
+    );
+  }
 }
 
 // --- VIEW MODEL ---
@@ -55,28 +146,31 @@ class DateWork {
 /// Manages the state and logic for the activity timer.
 class ActivityViewModel extends ChangeNotifier {
   // --- Private Properties ---
-  final List<Activity> _activities;
+  List<Activity> _activities; // Made non-final to allow modification after load
   Activity? _selectedActivity;
   bool _isPlaying;
   Duration _currentPlayDuration;
   Duration _currentPauseDuration;
   int _minPauseVibrationSeconds;
   int _minPlayVibrationSeconds;
-  final List<DateWork> _listDateWork;
+  final List<DateWork> _listDateWork; // Still final, modifications done via add/remove
   Timer? _timer;
   DateTime? _lastTickTime;
   DateTime? _sessionStartTime;
   bool _hasVibratedForPlayThreshold;
   bool _hasVibratedForPauseThreshold;
 
+  // --- SharedPreferences Keys ---
+  static const String _activitiesKey = 'activities';
+  static const String _selectedActivityIdKey = 'selectedActivityId';
+  static const String _minPauseVibrationSecondsKey = 'minPauseVibrationSeconds';
+  static const String _minPlayVibrationSecondsKey = 'minPlayVibrationSeconds';
+  static const String _dateWorkListKey = 'dateWorkList';
+
   // --- Constructor and Initializer List ---
   ActivityViewModel()
-      : _activities = [
-    Activity(id: '1', name: 'Work'),
-    Activity(id: '2', name: 'Break'),
-    Activity(id: '3', name: 'Study'),
-  ],
-        _selectedActivity = null, // Will be set to _activities.first in body
+      : _activities = [], // Initialize empty, will load from prefs or use defaults
+        _selectedActivity = null,
         _isPlaying = false,
         _currentPlayDuration = Duration.zero,
         _currentPauseDuration = Duration.zero,
@@ -85,7 +179,7 @@ class ActivityViewModel extends ChangeNotifier {
         _listDateWork = [],
         _hasVibratedForPlayThreshold = false,
         _hasVibratedForPauseThreshold = false {
-    _selectedActivity = _activities.first; // Set a default selected activity
+    _loadData(); // Load data asynchronously after initial setup
   }
 
   // --- Public Getters ---
@@ -119,49 +213,40 @@ class ActivityViewModel extends ChangeNotifier {
   /// it stops and logs the current session as if the 'Stop' button was clicked.
   void selectActivity(Activity item) {
     if (_selectedActivity != item) {
-      // If a session was active (either playing or paused),
-      // stop it and log it as if 'Stop' was clicked for the old activity.
       if (_sessionStartTime != null) {
         _stopAndLogCurrentSession();
       }
-      // Then, reset all timer-related state variables for the new activity.
-      // This also ensures _isPlaying is false and durations are zero.
       _resetCurrentSession();
-
-      _selectedActivity = item; // Set the new selected activity
-      notifyListeners(); // Notify listeners about the change.
+      _selectedActivity = item;
+      _saveData(); // Save selected activity change
+      notifyListeners();
     }
   }
 
   /// Toggles the play/pause state of the timer.
   void clickPlayOrPause() {
     if (_selectedActivity == null) {
-      // Should not happen with default selection, but as a safeguard.
       return;
     }
 
     _isPlaying = !_isPlaying;
 
     if (_isPlaying) {
-      // Switched to Play
-      _startTimer(); // Ensure timer is running to increment duration
+      _startTimer();
       _lastTickTime = DateTime.now();
-      _sessionStartTime ??= DateTime.now(); // Set session start time if not already set
-      _hasVibratedForPauseThreshold = false; // Reset pause vibration flag for new segment
+      _sessionStartTime ??= DateTime.now();
+      _hasVibratedForPauseThreshold = false;
 
-      // Reset play and pause durations when re-clicking play, as per request.
+      // Reset play and pause durations when re-clicking play, as per existing logic.
       _currentPlayDuration = Duration.zero;
       _currentPauseDuration = Duration.zero;
-      _hasVibratedForPlayThreshold = false; // Reset play vibration flag to allow re-vibration for new segment
+      _hasVibratedForPlayThreshold = false;
     } else {
-      // Switched to Pause
-      // Timer should continue running, but will now accumulate _currentPauseDuration
       if (_lastTickTime != null) {
-        // Capture any elapsed play time before switching to pause
         _currentPlayDuration += DateTime.now().difference(_lastTickTime!);
       }
-      _lastTickTime = DateTime.now(); // Update lastTickTime for pause duration calculation
-      _hasVibratedForPlayThreshold = false; // Reset play vibration flag for new segment
+      _lastTickTime = DateTime.now();
+      _hasVibratedForPlayThreshold = false;
     }
     notifyListeners();
   }
@@ -169,21 +254,23 @@ class ActivityViewModel extends ChangeNotifier {
   /// Sets the minimum pause duration in minutes before a vibration alert occurs.
   void onChangedMinPauseVibration(int min) {
     _minPauseVibrationSeconds = min * 60;
-    _hasVibratedForPauseThreshold = false; // Allow re-vibration if threshold changes
+    _hasVibratedForPauseThreshold = false;
+    _saveData(); // Save settings change
     notifyListeners();
   }
 
   /// Sets the minimum play duration in minutes before a vibration alert occurs.
   void onChangedMinPlayVibration(int min) {
     _minPlayVibrationSeconds = min * 60;
-    _hasVibratedForPlayThreshold = false; // Allow re-vibration if threshold changes
+    _hasVibratedForPlayThreshold = false;
+    _saveData(); // Save settings change
     notifyListeners();
   }
 
   /// Stops the current timer session and logs it.
   void stop() {
     if (_sessionStartTime != null && _selectedActivity != null) {
-      _stopAndLogCurrentSession();
+      _stopAndLogCurrentSession(); // This will call _saveData() internally
     }
     _resetCurrentSession();
     notifyListeners();
@@ -199,7 +286,7 @@ class ActivityViewModel extends ChangeNotifier {
 
   /// Starts or restarts the periodic timer.
   void _startTimer() {
-    _timer?.cancel(); // Cancel any existing timer
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       final now = DateTime.now();
       if (_lastTickTime != null) {
@@ -208,7 +295,6 @@ class ActivityViewModel extends ChangeNotifier {
           _currentPlayDuration += elapsed;
           _checkVibration(_currentPlayDuration, _minPlayVibrationSeconds, true);
         } else {
-          // This block now correctly executes when _isPlaying is false (paused)
           _currentPauseDuration += elapsed;
           _checkVibration(_currentPauseDuration, _minPauseVibrationSeconds, false);
         }
@@ -228,7 +314,7 @@ class ActivityViewModel extends ChangeNotifier {
   void _checkVibration(Duration currentDuration, int thresholdSeconds, bool isPlay) {
     if (currentDuration.inSeconds >= thresholdSeconds) {
       if ((isPlay && !_hasVibratedForPlayThreshold) || (!isPlay && !_hasVibratedForPauseThreshold)) {
-        HapticFeedback.heavyImpact(); // Strong vibration
+        HapticFeedback.heavyImpact();
         if (isPlay) {
           _hasVibratedForPlayThreshold = true;
         } else {
@@ -236,7 +322,6 @@ class ActivityViewModel extends ChangeNotifier {
         }
       }
     } else {
-      // Reset vibration flags if duration drops below threshold (e.g., threshold changed to higher)
       if (isPlay) {
         _hasVibratedForPlayThreshold = false;
       } else {
@@ -248,15 +333,12 @@ class ActivityViewModel extends ChangeNotifier {
   /// Stops the timer and logs the current session to `_listDateWork`.
   void _stopAndLogCurrentSession() {
     _stopTimer();
-    // Calculate final duration based on current state
     if (_lastTickTime != null) {
       final elapsedSinceLastTick = DateTime.now().difference(_lastTickTime!);
-      // Ensure the correct duration is added before logging,
-      // regardless of whether it was currently playing or paused when stopped.
       if (_isPlaying) {
         _currentPlayDuration += elapsedSinceLastTick;
       } else {
-        _currentPauseDuration += elapsedSinceLastTick; // Also account for pause time if stopped while paused.
+        _currentPauseDuration += elapsedSinceLastTick;
       }
     }
 
@@ -266,9 +348,10 @@ class ActivityViewModel extends ChangeNotifier {
           activityName: _selectedActivity!.name,
           startTime: _sessionStartTime!,
           endTime: DateTime.now(),
-          duration: _currentPlayDuration, // Log the total play duration for the session
+          duration: _currentPlayDuration, // Log the total play duration for this segment
         ),
       );
+      _saveData(); // Save logged sessions
     }
   }
 
@@ -284,6 +367,74 @@ class ActivityViewModel extends ChangeNotifier {
     _hasVibratedForPauseThreshold = false;
   }
 
+  // --- Persistence Methods ---
+
+  Future<void> _loadData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // Load activities
+    final List<String>? activitiesJsonStrings = prefs.getStringList(_activitiesKey);
+    if (activitiesJsonStrings != null && activitiesJsonStrings.isNotEmpty) {
+      _activities = activitiesJsonStrings
+          .map<Activity>((jsonString) => Activity.fromJson(json.decode(jsonString) as Map<String, dynamic>))
+          .toList();
+    } else {
+      // If no activities saved, initialize with defaults
+      _activities = [
+        Activity(id: '1', name: 'Work'),
+        Activity(id: '2', name: 'Break'),
+        Activity(id: '3', name: 'Study'),
+      ];
+    }
+
+    // Load selected activity
+    final String? selectedActivityId = prefs.getString(_selectedActivityIdKey);
+    if (selectedActivityId != null && _activities.any((activity) => activity.id == selectedActivityId)) {
+      _selectedActivity = _activities.firstWhere(
+            (activity) => activity.id == selectedActivityId,
+      );
+    } else {
+      _selectedActivity = _activities.first; // Default if nothing saved or ID not found
+    }
+
+    // Load vibration settings
+    _minPauseVibrationSeconds = prefs.getInt(_minPauseVibrationSecondsKey) ?? (1 * 60);
+    _minPlayVibrationSeconds = prefs.getInt(_minPlayVibrationSecondsKey) ?? (5 * 60);
+
+    // Load logged work sessions
+    final List<String>? dateWorkJsonStrings = prefs.getStringList(_dateWorkListKey);
+    if (dateWorkJsonStrings != null && dateWorkJsonStrings.isNotEmpty) {
+      _listDateWork.addAll(dateWorkJsonStrings
+          .map<DateWork>((jsonString) => DateWork.fromJson(json.decode(jsonString) as Map<String, dynamic>))
+          .toList());
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> _saveData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // Save activities
+    final List<String> activitiesJsonStrings = _activities
+        .map<String>((activity) => json.encode(activity.toJson()))
+        .toList();
+    await prefs.setStringList(_activitiesKey, activitiesJsonStrings);
+
+    // Save selected activity ID
+    await prefs.setString(_selectedActivityIdKey, _selectedActivity?.id ?? '');
+
+    // Save vibration settings
+    await prefs.setInt(_minPauseVibrationSecondsKey, _minPauseVibrationSeconds);
+    await prefs.setInt(_minPlayVibrationSecondsKey, _minPlayVibrationSeconds);
+
+    // Save logged work sessions
+    final List<String> dateWorkJsonStrings = _listDateWork
+        .map<String>((dateWork) => json.encode(dateWork.toJson()))
+        .toList();
+    await prefs.setStringList(_dateWorkListKey, dateWorkJsonStrings);
+  }
+
   // --- Dispose ---
   @override
   void dispose() {
@@ -297,28 +448,25 @@ class ActivityViewModel extends ChangeNotifier {
   void addActivity(String name) {
     final newActivity = Activity(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name);
     _activities.add(newActivity);
+    _saveData(); // Save activities list change
     notifyListeners();
   }
 
   /// Removes an activity from the list. Ensures at least one activity remains.
   void removeActivity(Activity activity) {
     if (_activities.length > 1) {
-      // Ensure at least one activity remains
       _activities.remove(activity);
       if (_selectedActivity == activity) {
         _selectedActivity = _activities.first;
-        _resetCurrentSession(); // Reset if the removed activity was selected
+        _resetCurrentSession();
       }
+      _saveData(); // Save activities list change
       notifyListeners();
     }
   }
 }
 
-// --- MAIN APPLICATION WIDGETS ---
 
-void main() {
-  runApp(const TimerApp());
-}
 
 class TimerApp extends StatelessWidget {
   const TimerApp({super.key});
@@ -335,7 +483,11 @@ class TimerApp extends StatelessWidget {
       home: ChangeNotifierProvider<ActivityViewModel>(
         create: (context) => ActivityViewModel(),
         builder: (context, child) {
-          return const MainTimerScreen();
+          //return const MainTimerScreen();
+          //return SelectItem<int>(0);
+          //return SelectItem<String>("-",list: ["a","b","c","d","e","f"],);
+          //return SelectItem<int>(65,onGetItem: (i)=>String.fromCharCode(i),);
+          return SelectItem<int>(65,onGetItem: (i)=>String.fromCharCode(i),);
         },
       ),
     );
