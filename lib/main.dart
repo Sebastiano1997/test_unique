@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 
 import 'package:vibration/vibration.dart';
 
+import 'AlarmManagerExampleApp.dart';
+
 /// The [SharedPreferences] key to access the alarm fire count.
 const String countKey = 'count';
 
@@ -26,6 +28,7 @@ ReceivePort port = ReceivePort();
 SharedPreferences? prefs;
 
 Future<void> main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
 
   // Register the UI isolate's SendPort to allow for communication from the
@@ -38,188 +41,5 @@ Future<void> main() async {
   if (!prefs!.containsKey(countKey)) {
     await prefs!.setInt(countKey, 0);
   }
-
-  runApp(const AlarmManagerExampleApp());
-}
-
-/// Example app for Espresso plugin.
-class AlarmManagerExampleApp extends StatelessWidget {
-  const AlarmManagerExampleApp({super.key});
-
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0x9f4376f8),
-      ),
-      home: const _AlarmHomePage(),
-    );
-  }
-}
-
-class _AlarmHomePage extends StatefulWidget {
-  const _AlarmHomePage();
-
-  @override
-  _AlarmHomePageState createState() => _AlarmHomePageState();
-}
-@pragma('vm:entry-point')
-class _AlarmHomePageState extends State<_AlarmHomePage> {
-  int _counter = 0;
-  PermissionStatus _exactAlarmPermissionStatus = PermissionStatus.granted;
-
-  @override
-  void initState() {
-    super.initState();
-    AndroidAlarmManager.initialize();
-    _checkExactAlarmPermission();
-
-    // Register for events from the background isolate. These messages will
-    // always coincide with an alarm firing.
-    port.listen((_) async => await _incrementCounter());
-  }
-
-  void _checkExactAlarmPermission() async {
-    final currentStatus = await Permission.scheduleExactAlarm.status;
-    if (!mounted) return;
-    setState(() {
-      _exactAlarmPermissionStatus = currentStatus;
-    });
-  }
-
-  Future<void> _incrementCounter() async {
-    developer.log('Increment counter!');
-    // Ensure we've loaded the updated count from the background isolate.
-    await prefs?.reload();
-
-    setState(() {
-      _counter++;
-    });
-  }
-
-  // The background
-  static SendPort? uiSendPort;
-
-  // The callback for our alarm
-  @pragma('vm:entry-point')
-  static Future<void> callback() async {
-    developer.log('Alarm fired!');
-    // Get the previous cached count and increment it.
-    final prefs = await SharedPreferences.getInstance();
-    final currentCount = prefs.getInt(countKey) ?? 0;
-    await prefs.setInt(countKey, currentCount + 1);
-
-    // This will be null if we're running in the background.
-    uiSendPort ??= IsolateNameServer.lookupPortByName(isolateName);
-    uiSendPort?.send(null);
-    Vibration.vibrate( pattern: [100, 500, 200, 1000], intensities: [128, 255]);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final textStyle = Theme.of(context).textTheme.headlineMedium;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Android alarm manager plus example'),
-        elevation: 4,
-      ),
-      body: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Spacer(),
-            Text(
-              'Alarms fired during this run of the app: $_counter',
-              style: textStyle,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Total alarms fired since app installation: ${prefs?.getInt(countKey).toString() ?? ''}',
-              style: textStyle,
-              textAlign: TextAlign.center,
-            ),
-            const Spacer(),
-            if (_exactAlarmPermissionStatus.isDenied)
-              Text(
-                'SCHEDULE_EXACT_ALARM is denied\n\nAlarms scheduling is not available',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              )
-            else
-              Text(
-                'SCHEDULE_EXACT_ALARM is granted\n\nAlarms scheduling is available',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _exactAlarmPermissionStatus.isDenied
-                  ? () async {
-                await Permission.scheduleExactAlarm
-                    .onGrantedCallback(() => setState(() {
-                  _exactAlarmPermissionStatus =
-                      PermissionStatus.granted;
-                }))
-                    .request();
-              }
-                  : null,
-              child: const Text('Request exact alarm permission'),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _exactAlarmPermissionStatus.isGranted
-                  ? () async {
-                await AndroidAlarmManager.oneShot(
-                  const Duration(seconds: 1),
-                  // Ensure we have a unique alarm ID.
-                  Random().nextInt(pow(2, 31) as int),
-                  callback,
-                  exact: true,
-                  wakeup: true,
-                );
-              }
-                  : null,
-              child: const Text('Schedule OneShot Alarm (1sec)'),
-            ),
-            ElevatedButton(
-              onPressed: _exactAlarmPermissionStatus.isGranted
-                  ? () async {
-                await AndroidAlarmManager.oneShot(
-                  const Duration(seconds: 5),
-                  // Ensure we have a unique alarm ID.
-                  Random().nextInt(pow(2, 31) as int),
-                  callback,
-                  exact: true,
-                  wakeup: true,
-                );
-              }
-                  : null,
-              child: const Text('Schedule OneShot Alarm (5sec)'),
-            ),
-            ElevatedButton(
-              onPressed: _exactAlarmPermissionStatus.isGranted
-                  ? () async {
-                await AndroidAlarmManager.oneShot(
-                  const Duration(minutes: 5),
-                  // Ensure we have a unique alarm ID.
-                  Random().nextInt(pow(2, 31) as int),
-                  callback,
-                  exact: true,
-                  wakeup: true,
-                );
-              }
-                  : null,
-              child: const Text('Schedule OneShot Alarm (5min)'),
-            ),
-            const Spacer(),
-          ],
-        ),
-      ),
-    );
-  }
+  runApp( AlarmManagerExampleApp());
 }
