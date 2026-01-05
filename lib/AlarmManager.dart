@@ -13,13 +13,16 @@ class AlarmManager
   /// + upgradeable
   Future<void> callBackLocal(int id,Map<String,dynamic> map)
   async {
-    // Get the previous cached count and increment it.
-    ////final prefs = await SharedPreferences.getInstance();
-    ////final currentCount = prefs.getInt(countKey) ?? 0;
-    ////await prefs.setInt(countKey, currentCount + 1);
-
-
-    Vibration.vibrate( pattern: [100, 500, 200, 1000], intensities: [128, 255]);
+    Vibration.vibrate( pattern: [100, 200], intensities: [50]);
+    //Vibration.vibrate( pattern: [100, 500, 200, 1000], intensities: [128, 255]);
+   /*
+   * pattern is a list of durations (in milliseconds) that alternate between:
+   . Wait (pause) time
+   . Vibration time
+   * intensities controls how strong the vibration is for each vibration segment.
+   . 0 → no vibration
+   . 255 → maximum strength (if the device supports it)
+    */
   }
 
   Future<int> oneShot(Duration duration)
@@ -43,7 +46,8 @@ class AlarmManager
 
   /// + body
 
-  PermissionStatus _exactAlarmPermissionStatus = PermissionStatus.granted;
+  static PermissionStatus _exactAlarmPermissionStatus = PermissionStatus.granted;
+  static bool get isPermissionDenied=>_exactAlarmPermissionStatus.isDenied;
   int? id;
 
   // The background
@@ -64,14 +68,24 @@ class AlarmManager
 
   }
 
-  static Future<void> cancel(int id) async
+  static Future<void> cancel(int? idOrReturn) async
   {
-    await AndroidAlarmManager.cancel(id);
+    if(idOrReturn!=null) await AndroidAlarmManager.cancel(idOrReturn);
+  }
+
+  static Future<void> getPermission()
+  async {
+    //onPressed: _exactAlarmPermissionStatus.isDenied ? () async {
+      await Permission.scheduleExactAlarm
+          .onGrantedCallback(() =>
+        _exactAlarmPermissionStatus =
+            PermissionStatus.granted)
+          .request();
   }
 
   int _getId()
   {
-    int id=-1;
+    int id;
     do{
       id=Random().nextInt(pow(2, 31) as int);
     }while(listId.contains(id));

@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 
 import 'package:vibration/vibration.dart';
 
+import 'AlarmManager.dart';
+
 /// The [SharedPreferences] key to access the alarm fire count.
 const String countKey = 'count';
 
@@ -70,6 +72,7 @@ class _AlarmHomePage extends StatefulWidget {
 class _AlarmHomePageState extends State<_AlarmHomePage> {
   int _counter = 0;
   PermissionStatus _exactAlarmPermissionStatus = PermissionStatus.granted;
+  AlarmManager alarm=AlarmManager();
 
   @override
   void initState() {
@@ -182,11 +185,18 @@ class _AlarmHomePageState extends State<_AlarmHomePage> {
             ElevatedButton(
               onPressed: _exactAlarmPermissionStatus.isGranted
                   ? () async {
-                AlarmManager alarm=AlarmManager();
                 await alarm.oneShot(Duration(seconds: 1));
               }
                   : null,
               child: const Text('Schedule OneShot Alarm With class (1sec)'),
+            ),
+            ElevatedButton(
+              onPressed: _exactAlarmPermissionStatus.isGranted
+                  ? () async {
+                await AlarmManager.cancel(alarm.id);
+              }
+                  : null,
+              child: const Text('Schedule Cancel Alarm With class '),
             ),
             ElevatedButton(
               onPressed: _exactAlarmPermissionStatus.isGranted
@@ -212,69 +222,3 @@ class _AlarmHomePageState extends State<_AlarmHomePage> {
 }
 
 
-@pragma('vm:entry-point')
-class AlarmManager
-{
-
-  PermissionStatus _exactAlarmPermissionStatus = PermissionStatus.granted;
-  int? id;
-
-  // The background
-  static SendPort? uiSendPort;
-  static List<int> listId=[];
-
-
-  Future<void> callBackLocal(int id,Map<String,dynamic> map)
-  async {
-    // Get the previous cached count and increment it.
-    final prefs = await SharedPreferences.getInstance();
-    final currentCount = prefs.getInt(countKey) ?? 0;
-    await prefs.setInt(countKey, currentCount + 1);
-
-
-    Vibration.vibrate( pattern: [100, 500, 200, 1000], intensities: [128, 255]);
-  }
-
-  Future<int> oneShot(Duration duration)
-  async {
-    id=_getId();
-    listId.add(id!);
-    await AndroidAlarmManager.oneShot(
-        duration,
-        // Ensure we have a unique alarm ID.
-        id!,
-        callback,
-        exact: true,
-        wakeup: true,
-        params: {
-          "0":0,
-        }
-    );
-    return id!;
-  }
-
-  @pragma('vm:entry-point')
-  static Future<void> callback(int id,Map<String,dynamic> map) async {
-    // This will be null if we're running in the background.
-    uiSendPort ??= IsolateNameServer.lookupPortByName(isolateName);
-    uiSendPort?.send(null);
-
-    await AlarmManager().callBackLocal(id,map);
-
-  }
-
-  static Future<void> cancel(int id) async
-  {
-    await AndroidAlarmManager.cancel(id);
-  }
-
-  int _getId()
-  {
-    int id=-1;
-    do{
-      id=Random().nextInt(pow(2, 31) as int);
-    }while(listId.contains(id));
-    return id;
-  }
-
-}
