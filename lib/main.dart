@@ -14,7 +14,10 @@ import 'package:flutter/material.dart';
 import 'package:vibration/vibration.dart';
 
 import 'AlarmManagerExampleApp.dart';
+import 'ComponentE.dart';
+import 'LineNumberedTextField.dart';
 import 'ReorderableListPage.dart';
+import 'StyledWordController.dart';
 import 'Wello.dart';
 
 /// The [SharedPreferences] key to access the alarm fire count.
@@ -31,6 +34,32 @@ SharedPreferences? prefs;
 
 Future<void> main() async {
 
+  runApp(
+    MaterialApp(
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
+      ),
+      home: Scaffold(
+      body: Column(
+        children: [
+        ComponentE(
+          title: Text("+02:10"),
+          subtitle: Text("Work done!"),
+          leading: Icon(Icons.timer),
+          size: SizeE.large,
+          children: [
+            Text("aaa"),
+            Text("aaa"),
+          ],
+        ),
+
+      ],),
+    ),)
+  );
+}
+Future<void> main2() async {
+
   /*
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -45,8 +74,69 @@ Future<void> main() async {
     await prefs!.setInt(countKey, 0);
   }
   */
-  runApp(MyAppReorderableListPage());
+  int x=10;
+  int y=3;
+  Wello2? we2;
+  runApp(
+      StartWidget(
+      //child:LineNumberedTextEditor()
+        child: Wello2(
+          clas:"1",
+          builder: (we){
+            print("buiòder1");
+          },
+              (we)=>
+                  Column(
+                    children: [
+                      TextButton(
+                          onPressed: (){
+                                      x++;
+                                      y++;
+                                      we?.setStateWello();
+                                    }, child: Text("x::${x}")),
+                      Wello2(
+                            clas: "2",
+                            builder: (we){
+                              print("buiòder2");
+                            },
+                            (we)=>TextButton(onPressed: (){
+                                      y++;
+                                      we?.setStateWello();
+                                    }, child: Text("y::${y}")),),
+
+                    ],
+                  ),
+        )
+      )
+  );
 }
+
+
+/// + Start
+
+class StartWidget extends StatelessWidget
+{
+  StartWidget({ required this.child});
+
+  Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return
+      MaterialApp(home:
+      Scaffold(
+        appBar: AppBar(
+          title: const Text('Title'),
+        ),
+        body: child
+    )
+      );
+  }
+
+}
+
+
+/// +  other
 
 
 class MoveItem extends StatelessWidget
@@ -88,3 +178,138 @@ class MoveItem extends StatelessWidget
 
 }
 
+
+class Wello2 extends StatefulWidget{
+  Wello2( this.view,{super.key, this.clas,this.builder=null})
+  {
+    print("dsa2");
+  }
+
+  // static
+
+  // --------------request and setting
+  Widget? child;
+  Function setStateWello=(){};
+  Function(Wello2)? builder;
+  late Widget Function(Wello2)  view;
+  String? clas;
+  Wello? father;
+
+  bool _bCallBuilder=false;
+
+  // --------------use
+  BuildContext? context;
+
+  // -------------properties
+
+
+
+  // ---------------- other function
+
+
+
+  // ---------------funzioni
+
+
+
+
+  // review
+
+
+  // print
+
+
+  // create state
+  @override
+  _Wello2 createState() => _Wello2();
+
+}
+
+class _Wello2 extends State<Wello2> {
+
+
+  // function
+
+  void mainState(){
+
+    if(widget.builder!=null) {
+      widget.builder!(widget);
+    }
+    //widget.father=widget.father??Wello.iwGranFather;
+
+  }
+
+  @override
+  void initState()
+  {
+    super.initState();
+    mainState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    //mainState();
+  }
+
+
+  @override
+  void didUpdateWidget(oldWidget)
+  {
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
+  void dispose()
+  {
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if(!widget._bCallBuilder )
+    {
+      mainState();
+      widget._bCallBuilder=true;
+    }
+
+    widget.child=widget.view(widget);
+    widget.setStateWello=(){
+      if(mounted) {
+        setState(() {});
+      }
+    };
+    widget.context=context;
+
+    return widget.child!;
+  }
+
+}
+
+class ItemEllo<T>
+{
+  Wello2? we2;
+
+  T? _item;
+  T? get item{
+    return _item;
+  }
+
+}
+
+class Item
+{
+  String _name="";
+  String get name{
+    //listWe.add(we);
+    return _name;
+  }
+  set name(v){
+    _name=v;
+    listWe.forEach((i)=>i.setStateWello());
+  }
+
+  List<Wello2> listWe=[];
+
+
+}

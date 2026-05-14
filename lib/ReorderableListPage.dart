@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart'; // Per generare ID unici per gli elementi
+import 'package:uuid/uuid.dart';
+
+import 'main.dart'; // Per generare ID unici per gli elementi
 
 // Inizializza un generatore di UUID per avere ID unici
 const uuid = Uuid();
@@ -337,22 +339,4 @@ class _ReorderableListPageState2 extends State<ReorderableListPage> {
         padding: const EdgeInsets.only(top: 8.0),
       );
   }
-}
-
-class StartWidget extends StatelessWidget
-{
-  StartWidget({ required this.child});
-
-  Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-        title: const Text('Riorganizza la Lista'),
-    ),
-    body: child
-    );
-  }
-
 }
