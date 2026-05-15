@@ -391,3 +391,27 @@ class IconExpandedList extends StatelessWidget
   }
 
 }
+
+
+class ListViewE extends StatelessWidget {
+  const ListViewE({
+    super.key,
+    this.height,
+    required this.children,
+  });
+
+  final double? height;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final calculatedHeight = height ?? MediaQuery.of(context).size.height;
+
+    return SizedBox(
+      height: calculatedHeight,
+      child: ListView(
+        children: children,
+      ),
+    );
+  }
+}

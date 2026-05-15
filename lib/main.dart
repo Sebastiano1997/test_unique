@@ -42,7 +42,7 @@ Future<void> main() async {
       ),
       home: Scaffold(
       body: Container(
-        child: Column(
+        child: ListViewE(
           children: [
             /*
           ComponentE(
@@ -212,7 +212,7 @@ Future<void> main() async {
                 ),
               ],
             ),
-            ComponentE3(title: Text("End"),size: SizeE.large,isNotFatherListView: false,)
+            ComponentE3(title: Text("End"),size: SizeE.large,isNotFatherListView: false,),
 
         ],),
       ),
