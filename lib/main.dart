@@ -37,24 +37,185 @@ Future<void> main() async {
   runApp(
     MaterialApp(
       theme: ThemeData(
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.purple),
       ),
       home: Scaffold(
-      body: Column(
-        children: [
-        ComponentE(
-          title: Text("+02:10"),
-          subtitle: Text("Work done!"),
-          leading: Icon(Icons.timer),
-          size: SizeE.large,
+      body: Container(
+        child: Column(
           children: [
-            Text("aaa"),
-            Text("aaa"),
-          ],
-        ),
+            /*
+          ComponentE(
+            title: Text("+02:10"),
+            subtitle: Text("Work done!"),
+            leading: Icon(Icons.timer),
+            size: SizeE.large,
+            children: [
+              ComponentE(
+                title: Text("aaaaa"),
+                isBorder: false,
+              ),
+              ComponentE(
+                title: Text("aaaaa"),
+                size: SizeE.small,
+              ),
+              ComponentE(
+                title: Text("Title"),
+                children: [
+                  ComponentE(
+                    leading: Icon(Icons.add_circle),
+                    title: Text("07:10"),isBorder: false,)
+                ],
+              )
+            ],
+          ),
+            */
+            /*
+            ComponentE2(
+              title: Text("Title"),
+              leading: Icon(Icons.search_off),
+              subtitle: Text("subtitle"),
+              settings: [Icon(Icons.settings)],
+              size: SizeE.large,
+              children: [
+                ComponentE2(
+                  title: Text("a"),isBorder: false,
+                  children: [
+                    Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),Text("b"),
+                  ],
+                ),
+                ComponentE2(
+                  title: Text("a2"),isBorder: false,size: SizeE.small,
+                ),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+                Text("a"),
+              ],
+            ),
+            ComponentE2(
+              title: Text("Title2"),
+              leading: IconButton(onPressed: (){}, icon: Icon(Icons.send_and_archive)),
+              subtitle: Text("subtitle2"),
+              size: SizeE.medium,
+              settings: [Icon(Icons.security)],
+            ),
+            ComponentE(title: Text("Page1"),),
+             */
+            ComponentE3(
+              getTitle:(t,i)=> TextButton(onPressed: (){}, child: Text("Click here!",style: t,)),
+              subtitle: Text("for work!"),
+              leading: Icon(Icons.work_history),
+              align: AlignE.center,
+              size: SizeE.large,
+              isBorder: false,
+            ),
+            ComponentE3(
+              title: Text("+02:15"),
+              subtitle: Text("work done!"),
+              leading: Icon(Icons.timer_outlined),
+              settings: [Icon(Icons.watch_later_outlined),Text("/08:45")],
+              size: SizeE.large,
+              align: AlignE.center,
+              children: [
+                ComponentE3(
+                  title: Text("-03:15"),
+                  subtitle: Text("work to do!"),
+                  leading: Icon(Icons.timer),
+                  size: SizeE.medium,
+                  align: AlignE.right,
+                  isBorder: false,
+                  isNotFatherListView: false,
+                ),
+                ComponentE3(
+                  title: Text("00:00"),
+                  subtitle: Text("time personal!"),
+                  leading: Icon(Icons.timer),
+                  size: SizeE.small,
+                  align: AlignE.left,
+                  isBorder: false,
+                  isNotFatherListView: false,
+                ),
+              ],
+            ),
+            ComponentE3(
+              title: Text("Settings"),
+              leading: Icon(Icons.settings),
+              size: SizeE.large,
+              align: AlignE.left,
+              settings: [IconExpandedList(icon: Icons.arrow_drop_up,iconOff: Icons.arrow_drop_down)],
+              children: [
+                ComponentE3(
+                  title: Text("08:25"),
+                  subtitle: Text("start work!"),
+                  leading: Icon(Icons.work_history_outlined),
+                  settings: [IconButton(onPressed: (){}, icon: Icon(Icons.edit))],
+                  size: SizeE.small,
+                  align: AlignE.left,
+                  isBorder: false,
+                ),
+                ComponentE3(
+                  title: Text("17:35"),
+                  subtitle: Text("end work!"),
+                  leading: Icon(Icons.work_history),
+                  settings: [IconButton(onPressed: (){}, icon: Icon(Icons.edit))],
+                  size: SizeE.small,
+                  align: AlignE.left,
+                  isBorder: false,
+                ),
+                ComponentE3(
+                  title: Text("00:00"),
+                  subtitle: Text("time personal today!"),
+                  leading: Icon(Icons.more_time_rounded),
+                  settings: [IconButton(onPressed: (){}, icon: Icon(Icons.edit))],
+                  size: SizeE.medium,
+                  align: AlignE.left,
+                  isBorder: false,
+                ),
+                ComponentE3(
+                  title: Text("08:45"),
+                  subtitle: Text("ordinary work day!"),
+                  leading: Icon(Icons.timer_sharp),
+                  settings: [IconButton(onPressed: (){}, icon: Icon(Icons.edit))],
+                  size: SizeE.medium,
+                  align: AlignE.left,
+                  isBorder: false,
+                ),
+              ],
+            ),
+            ComponentE3(title: Text("End"),size: SizeE.large,isNotFatherListView: false,)
 
-      ],),
+        ],),
+      ),
     ),)
   );
 }
