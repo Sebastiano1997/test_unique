@@ -12,7 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:vibration/vibration.dart';
 
 import 'AlarmManagerExampleApp.dart';
-import 'ComponentE.dart';
+import 'Component/ComponentE.dart';
+import 'Component/IconExpandedList.dart';
+import 'Component/ListViewE.dart';
 import 'LineNumberedTextField.dart';
 import 'ReorderableListPage.dart';
 import 'StyledWordController.dart';
