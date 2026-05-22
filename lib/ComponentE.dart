@@ -43,6 +43,15 @@ class BuildThemeIconText extends StatelessWidget
     this.color,
     this.size=SizeE.medium
   });
+  BuildThemeIconText.all2({
+    super.key,
+    this.child,
+    required this.isIconText,
+    this.getChild,
+    this.getChild2,
+    this.color,
+    this.size=SizeE.medium
+  });
 
   late Widget? child;
   bool isIconText;
@@ -51,44 +60,61 @@ class BuildThemeIconText extends StatelessWidget
 
   Widget Function(TextStyle,IconThemeData)? getChild;
 
+  Widget Function(ColorScheme,TextStyle,IconThemeData)? getChild2;
+
   /// + var
   IconThemeData? iconThemeData;
   TextStyle? textStyle;
 
   /// + func
+
+  ColorScheme getColorScheme(BuildContext context){
+    final theme = Theme.of(context);
+    final ColorScheme colorScheme;
+
+    if(color!=null) colorScheme=ColorScheme.fromSeed(seedColor: color!,brightness: theme.brightness);
+    else colorScheme=theme.colorScheme;
+
+    return colorScheme;
+  }
+
   void buildIconTextTheme(SizeE size, BuildContext context)
   {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    ColorScheme colorScheme=getColorScheme(context);
 
     double sizeItem=18;
-    Color colorItem=theme.colorScheme.onSecondaryContainer;
+    Color colorItem=colorScheme.onSecondaryContainer;
     FontWeight? fontWeightItem;
 
     /// + set value
     if(size==SizeE.small) {
       sizeItem=18;
-      colorItem=theme.colorScheme.onSecondaryContainer;
+      //colorItem=theme.colorScheme.onSecondaryContainer;
+      colorItem=colorScheme.tertiary;
       fontWeightItem=null;
     } else if(size==SizeE.medium)
     {
       sizeItem=24;
-      colorItem=theme.colorScheme.onSecondaryContainer;
+      //colorItem=theme.colorScheme.onSecondaryContainer;
+      colorItem=colorScheme.secondary;
+
       fontWeightItem=null;
     }else if(size==SizeE.large)
     {
       sizeItem=32;
-      colorItem=theme.colorScheme.onPrimaryContainer;
+      //colorItem=theme.colorScheme.onPrimaryContainer;
+      colorItem=colorScheme.primary;
+
       //fontWeightItem=FontWeight.bold;
     }
 
     /// + set Style
-    if(getChild!=null || (isIconText))
+    if(getChild!=null || getChild2!=null || (isIconText))
     {
       iconThemeData=IconThemeData(size: sizeItem,color: colorItem);
     }
 
-    if(getChild!=null || (!isIconText))
+    if(getChild!=null ||getChild2!=null || (!isIconText))
     {
       textStyle=TextStyle(fontSize:sizeItem,color: colorItem,fontWeight: fontWeightItem);
     }
@@ -98,11 +124,13 @@ class BuildThemeIconText extends StatelessWidget
 
   @override
   Widget build(BuildContext context) {
-    if(child==null && getChild==null) return SizedBox();
+    if(child==null && getChild==null && getChild2==null) return SizedBox();
 
+    ColorScheme colorScheme=getColorScheme(context);
     buildIconTextTheme(size, context);
 
     if(getChild!=null)  return getChild!(textStyle!,iconThemeData!);
+    if(getChild2!=null)  return getChild2!(colorScheme,textStyle!,iconThemeData!);
 
     if(isIconText)
     {
@@ -181,7 +209,7 @@ class ComponentE3 extends StatelessWidget
   bool isNotFatherListView;
 
   // + withStyle
-  Widget Function(TextStyle,IconThemeData)? getTitle;
+  Widget Function(ColorScheme,TextStyle,IconThemeData)? getTitle;
   Widget Function(TextStyle,IconThemeData)? getLeading;
   Widget Function(TextStyle,IconThemeData)? getSubtitle;
   List<Widget> Function(TextStyle,IconThemeData)? getSettings;
@@ -195,6 +223,16 @@ class ComponentE3 extends StatelessWidget
 
   /// + func
 
+  ColorScheme getColorScheme(BuildContext context){
+    final theme = Theme.of(context);
+    final ColorScheme colorScheme;
+
+    if(color!=null) colorScheme=ColorScheme.fromSeed(seedColor: color!,brightness: theme.brightness);
+    else colorScheme=theme.colorScheme;
+
+    return colorScheme;
+  }
+
   double get heightChildrenGet => heightChildren??heightChildrenDefault;
 
 
@@ -205,11 +243,17 @@ class ComponentE3 extends StatelessWidget
     else return MainAxisAlignment.end;
   }
 
+  bool isNotNull(List list)
+  {
+    return list.any((i)=>i!=null);
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+
+    final ColorScheme colorScheme=getColorScheme(context);
+    final isDark = colorScheme.brightness == Brightness.dark;
 
     SizeE sizeMinus=size-1;
     int lengthGetSetting=getSettings?.call(TextStyle(),IconThemeData()).length??0;
@@ -222,10 +266,10 @@ class ComponentE3 extends StatelessWidget
           isColumnOrListView: isNotFatherListView,
           child:
         thisContainer(
-        isDark: isDark,
-        theme: theme,
-        isBorder: isBorder,
-        child:  Column(
+          colorScheme:colorScheme,
+          isDark:isDark,
+          isBorder: isBorder,
+          child:  Column(
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -234,26 +278,30 @@ class ComponentE3 extends StatelessWidget
                     child: Row(
                       mainAxisAlignment:  getAlignMainAxis(align),
                       children: [
-                        if(leading!=null)
+                        if( isNotNull([leading,getLeading]) )
                           BuildThemeIconText.all(
+                            color: color,
                           getChild: getLeading,
                           isIconText: true,
                           size: size,
                           child: leading,),
 
-                        if(leading!=null && (title!=null || subtitle!=null))const SizedBox(width: 10),
+                        if( isNotNull([leading,getLeading]) && ( isNotNull([title,getTitle]) || isNotNull([subtitle,getSubtitle]) ) )
+                          const SizedBox(width: 10),
 
-                        if(title!=null || subtitle!=null)
+                        if(isNotNull([title,getTitle]) || isNotNull([subtitle,getSubtitle]) )
                           Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            BuildThemeIconText.all(
-                              getChild: getTitle,
+                            BuildThemeIconText.all2(
+                              color: color,
+                              getChild2: getTitle,
                               isIconText: false,
                               size: size,
                               child: title,),
                             BuildThemeIconText.all(
+                              color: color,
                               size: sizeMinus,
                               getChild: getSubtitle,
                               isIconText: false,
@@ -262,19 +310,21 @@ class ComponentE3 extends StatelessWidget
                         ),
                       ],),
                   ),
-                  if(settings!=null)
+                  if( isNotNull([settings,getSettings]) )
                     Row(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       for(var item in settings??[])
                         BuildThemeIconText.all(
+                          color: color,
                           child: item,
                           isIconText: true,
-                          size: size,
+                          size: sizeMinus, // size
                         ),
                       for(int cGetSetting=0; cGetSetting<lengthGetSetting;cGetSetting++)
                         BuildThemeIconText.all(
+                          color: color,
                           getChild: (t,i){ return getSettings!.call(t,i)[cGetSetting]; },
                           isIconText: true,
                           size: size,
@@ -286,7 +336,7 @@ class ComponentE3 extends StatelessWidget
               if(children!=null && isExpandedChildren)
                 thisColumnOrListView(
                       isColumnOrListView: isChildrenColumnOrListView,
-                      theme: theme,
+                      colorScheme: colorScheme,
                       isDark: isDark,
                       children: children??[],
                   ),
@@ -298,7 +348,7 @@ class ComponentE3 extends StatelessWidget
   }
 
   Widget thisContainer({
-    required ThemeData theme,
+    required ColorScheme colorScheme,
     required bool isDark,
     required Widget child,
     required bool isBorder,
@@ -312,14 +362,14 @@ class ComponentE3 extends StatelessWidget
       margin: margin,
       padding: padding ,
       decoration: !isBorder?null:BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha:isDark ? 0.3 : 0.7),//theme.colorScheme.surfaceContainerHighest.withValues(alpha:isDark ? 0.3 : 0.7),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha:isDark ? 0.3 : 0.6),//theme.colorScheme.surfaceContainerHighest.withValues(alpha:isDark ? 0.3 : 0.7),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: colorScheme.outline.withOpacity(0.2),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: colorScheme.shadow.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -336,11 +386,11 @@ class ComponentE3 extends StatelessWidget
     else return child;
   }
 
-  Widget thisColumnOrListView({required ThemeData theme, required bool isDark,required bool isColumnOrListView, required List<Widget> children})
+  Widget thisColumnOrListView({required ColorScheme colorScheme, required bool isDark,required bool isColumnOrListView, required List<Widget> children})
   {
     if(isColumnOrListView) {
       return thisContainer(
-          theme: theme,
+          colorScheme: colorScheme,
           isDark: isDark,
           isBorder: true,
           height: heightChildren,
@@ -354,8 +404,8 @@ class ComponentE3 extends StatelessWidget
     else {
       return
       thisContainer(
-      theme: theme,
-      isDark: isDark,
+          colorScheme: colorScheme,
+          isDark: isDark,
           isBorder: true,
           height: heightChildrenGet,
   margin: const EdgeInsetsGeometry.all(0),
@@ -373,10 +423,14 @@ class ComponentE3 extends StatelessWidget
 
 class IconExpandedList extends StatelessWidget
 {
-  IconExpandedList({super.key,required this.icon,this.iconOff,this.onPressed});
+  IconExpandedList({super.key, IconData? icon,IconData? iconOff,this.onPressed})
+  {
+    this.icon=icon??Icons.arrow_drop_up;
+    this.iconOff=iconOff??icon??Icons.arrow_drop_down;
+  }
 
-  IconData icon;
-  IconData? iconOff;
+  late IconData icon;
+  late IconData iconOff;
 
   bool isOnOff=true;
 
@@ -386,7 +440,7 @@ class IconExpandedList extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     return Wello(view: (we){
-      return IconButton(onPressed: (){onPressedInternal(); isOnOff=!isOnOff;  onPressed?.call(); we.setStateWello(); } , icon: Icon(isOnOff?icon:(iconOff??icon)) );
+      return IconButton(onPressed: (){onPressedInternal(); isOnOff=!isOnOff;  onPressed?.call(); we.setStateWello(); } , icon: Icon(isOnOff?icon:iconOff) );
     });
   }
 

@@ -1,10 +1,8 @@
 // Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import 'dart:developer' as developer;
+
 import 'dart:isolate';
-import 'dart:math';
-import 'dart:ui';
 
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -34,11 +32,16 @@ SharedPreferences? prefs;
 
 Future<void> main() async {
 
+  Brightness brightness=Brightness.dark;
+
+  ColorScheme colorScheme=ColorScheme.fromSeed(seedColor: Colors.purple,brightness: brightness);
+
   runApp(
     MaterialApp(
       theme: ThemeData(
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.purple),
+        brightness: brightness,
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green,brightness: brightness),
       ),
       home: Scaffold(
       body: Container(
@@ -132,7 +135,7 @@ Future<void> main() async {
             ComponentE(title: Text("Page1"),),
              */
             ComponentE3(
-              getTitle:(t,i)=> TextButton(onPressed: (){}, child: Text("Click here!",style: t,)),
+              getTitle:(c,t,i)=> TextButton(onPressed: (){}, child: Text("Click here!",style: t,)),
               subtitle: Text("for work!"),
               leading: Icon(Icons.work_history),
               align: AlignE.center,
@@ -140,14 +143,17 @@ Future<void> main() async {
               isBorder: false,
             ),
             ComponentE3(
-              title: Text("+02:15"),
+              color: Colors.red,
+              title: Text("+02:16",),
+              getTitle: (c,t,i)=>Text("+02:15",style: t,),
               subtitle: Text("work done!"),
               leading: Icon(Icons.timer_outlined),
-              settings: [Icon(Icons.watch_later_outlined),Text("/08:45")],
+              settings:[ Icon(Icons.watch_later_outlined),Text("/08:45")],
               size: SizeE.large,
               align: AlignE.center,
               children: [
                 ComponentE3(
+                  color: Colors.red,
                   title: Text("-03:15"),
                   subtitle: Text("work to do!"),
                   leading: Icon(Icons.timer),
@@ -157,6 +163,7 @@ Future<void> main() async {
                   isNotFatherListView: false,
                 ),
                 ComponentE3(
+                  color: Colors.red,
                   title: Text("00:00"),
                   subtitle: Text("time personal!"),
                   leading: Icon(Icons.timer),
@@ -168,11 +175,12 @@ Future<void> main() async {
               ],
             ),
             ComponentE3(
+              //color: Colors.blue.withValues(alpha: 0.1),
               title: Text("Settings"),
               leading: Icon(Icons.settings),
               size: SizeE.large,
               align: AlignE.left,
-              settings: [IconExpandedList(icon: Icons.arrow_drop_up,iconOff: Icons.arrow_drop_down)],
+              settings: [IconExpandedList()],
               children: [
                 ComponentE3(
                   title: Text("08:25"),
@@ -212,9 +220,56 @@ Future<void> main() async {
                 ),
               ],
             ),
-            ComponentE3(title: Text("End"),size: SizeE.large,isNotFatherListView: false,),
+            ComponentE3(
+              title: Text("End"),
+              subtitle: Text("End sub"),
+              size: SizeE.large,),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Usa 'primary' per lo sfondo e 'onPrimary' per il testo
+                ElevatedButton(
+                  onPressed: () {},
+                  child: const Text('Usa primary / onPrimary'),
+                ),
+                const SizedBox(height: 16),
 
-        ],),
+                // Usa 'surfaceContainer' per lo sfondo e 'onSurface' per il testo
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Usa surfaceContainer / onSurface',
+                      style: TextStyle(color: colorScheme.onSurface),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Usa 'error' per lo sfondo del badge e 'onError' per il testo interno
+                const Center(
+                  child: Badge(
+                    label: Text('Usa error / onError'),
+                    child: Icon(Icons.notifications),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Estrazione manuale: usa 'secondary' per colorare un testo personalizzato
+                Text(
+                  'Testo colorato manualmente con secondary',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colorScheme.secondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            )
+
+
+          ],),
       ),
     ),)
   );
