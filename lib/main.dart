@@ -8,7 +8,6 @@ import 'pages/LineNumberedTextField/ui/LineNumberedTextField.dart';
 import 'pages/HistoryObj/ui/HistoryObj.dart';
 import 'pages/EGI_DartPad/ui/EGI_DartPad.dart';
 import 'pages/Scrapping/ui/Scrapping.dart';
-import 'pages/testUl/ui/testUl.dart';
 
 void main() => runApp(const MyApp());
 
@@ -44,8 +43,8 @@ class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
   final List<PageDescriptor> _pages = [
+    const PageDescriptor(title: 'Page Out', icon: Icons.exit_to_app, page: PageOutPage()),
     const PageDescriptor(title: 'Home', icon: Icons.home, page: _HomePlaceholder()),
-    const PageDescriptor(title: 'Page Out', icon: Icons.exit_to_app, page: PageOut()),
     const PageDescriptor(title: 'AlarmManagerExampleApp', icon: Icons.alarm, page: AlarmManagerExampleApp()),
     const PageDescriptor(title: 'CalendarApp', icon: Icons.calendar_today, page: CalendarApp()),
     const PageDescriptor(title: 'LineNumberedTextField', icon: Icons.format_list_numbered, page: LineNumberedTextField2()),
@@ -53,7 +52,6 @@ class _MainShellState extends State<MainShell> {
     const PageDescriptor(title: 'HistoryObj', icon: Icons.history, page: HistoryObjPage()),
     const PageDescriptor(title: 'EGI DartPad', icon: Icons.code, page: EgiDartPad()),
     const PageDescriptor(title: 'Scrapping', icon: Icons.web, page: ScrappingPage()),
-    const PageDescriptor(title: 'testUl', icon: Icons.bug_report, page: TestUlPage()),
   ];
 
   void _selectPage(int index) {

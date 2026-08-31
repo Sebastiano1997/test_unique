@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:test_unique/dependencies/services/ISaveLoad.dart';
 
 /// Converted from C# PageOut -> Dart implementation
 
@@ -43,15 +44,53 @@ class ADU<T> {
   void delete(T item) => listRef.remove(item);
 }
 
+class PageOutDal implements ISaveLoad<PageOutModel>
+{
+  PageOutDal(this.model)
+  {
+    saveLoad=SaveLoadJson<PageOutModel>(
+        keyToSave: "PageOutModel",
+        toJson: toJson,
+        fromJson: fromJson)
+  }
+
+  PageOutModel model;
+  late SaveLoadJson<PageOutModel> saveLoad;
+  @override
+  Future<PageOutModel?> load() async {
+    return await saveLoad.load();
+  }
+
+  @override
+  void save() {
+    saveLoad.save();
+  }
+
+}
+
 class PageOutModel {
   PageOutModel() {
     adu = ADU<OutItem>(list);
     selectedSectionOut = listSection.first;
+
+    dal=PageOutDal(this);
   }
+
+  late PageOutDal dal;
 
   final List<String> listWhose = ['A', 'B'];
 
   final List<SectionOut> listSection = [
+    SectionOut('Generic')
+      ..syntax = [
+        SyntaxBlockOut.form(ItemFormOut.value, whose: 'A'),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.value, whose: 'B'),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.description),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.date),
+      ],
     SectionOut('Life')
       ..syntax = [
         SyntaxBlockOut.form(ItemFormOut.value, whose: 'A'),
@@ -62,8 +101,36 @@ class PageOutModel {
         SyntaxBlockOut.value('\t'),
         SyntaxBlockOut.form(ItemFormOut.date),
       ],
-    SectionOut('Tax'),
-    SectionOut('A Personal'),
+    SectionOut('Tax')
+      ..syntax = [
+        SyntaxBlockOut.form(ItemFormOut.value, whose: 'A'),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.value, whose: 'B'),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.description),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.date),
+      ],
+    SectionOut('A Personal')
+      ..syntax = [
+        SyntaxBlockOut.form(ItemFormOut.value, whose: 'A'),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.value, whose: 'B'),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.description),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.date),
+      ],
+    SectionOut('B Personal')
+      ..syntax = [
+        SyntaxBlockOut.form(ItemFormOut.value, whose: 'A'),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.value, whose: 'B'),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.description),
+        SyntaxBlockOut.value('\t'),
+        SyntaxBlockOut.form(ItemFormOut.date),
+      ],
   ];
 
   final List<OutItem> list = [];
@@ -75,6 +142,8 @@ class PageOutModel {
     item.whose = valueWhose;
     item.section = selectedSectionOut;
     adu.add(item);
+
+    dal.save();
   }
 
   void onSelectedSectionOut(SectionOut sectionOut) {
@@ -82,39 +151,52 @@ class PageOutModel {
   }
 
   String getSyntaxString() {
-    final buffer = StringBuffer();
-    for (final item in list) {
-      buffer.writeln(_getSyntaxStringItem(item));
+    //final buffer = StringBuffer();
+    String buffer2 = "";
+    var listWhereSection=list.where((i)=>i.section==this.selectedSectionOut);
+    for (final item in listWhereSection) {
+     //buffer.writeln(_getSyntaxStringItem(item));
+      buffer2+="${_getSyntaxStringItem(item)}\r\n";
     }
-    return buffer.toString();
+    return buffer2.toString();
   }
 
   String _getSyntaxStringItem(OutItem outItem) {
     final sb = StringBuffer();
+    String sb2 = "";
     for (final block in selectedSectionOut.syntax) {
+
       if (block.value != null) {
-        sb.write(block.value);
+        //sb.write(block.value);
+        sb2+=block.value!;
       } else if (block.itemForm != null) {
         switch (block.itemForm!) {
           case ItemFormOut.value:
-            if (block.whose == null || block.whose == outItem.whose) sb.write(outItem.value);
+            if (block.whose == null || block.whose == outItem.whose) /*sb.write(outItem.value);*/sb2+=outItem.value!;
             break;
           case ItemFormOut.description:
-            if (block.whose == null || block.whose == outItem.whose) sb.write(outItem.description);
+            if (block.whose == null || block.whose == outItem.whose) /*sb.write(outItem.description);*/sb2+=outItem.description!;
             break;
           case ItemFormOut.whose:
-            if (block.whose == null || block.whose == outItem.whose) sb.write(outItem.whose);
+            if (block.whose == null || block.whose == outItem.whose) /*sb.write(outItem.whose);*/sb2+=outItem.whose!;
             break;
           case ItemFormOut.section:
-            if (block.whose == null || block.whose == outItem.whose) sb.write(selectedSectionOut.name);
+            if (block.whose == null || block.whose == outItem.whose) /*sb.write(selectedSectionOut.name);*/sb2+=selectedSectionOut.name;
             break;
           case ItemFormOut.date:
-            if (block.whose == null || block.whose == outItem.whose) sb.write(outItem.date.toString());
+            if (block.whose == null || block.whose == outItem.whose) /*sb.write(outItem.date.toString());*/sb2+=outItem.date.toString();
             break;
         }
       }
     }
-    return sb.toString();
+    //return sb.toString();
+    return sb2.toString();
+  }
+
+  Future<bool> buildAsync()
+  async {
+    await dal.load();
+    return true;
   }
 }
 
@@ -129,7 +211,7 @@ class PageOutVM {
 
   List<String> get listWhose => model.listWhose;
   List<SectionOut> get listSection => model.listSection;
-  List<OutItem> get listItems => model.list;
+  List<OutItem> get listItems => model.list.reversed.toList();
   ADU<OutItem> get adu => model.adu;
   SectionOut get selectedSectionOut => model.selectedSectionOut;
 
@@ -225,7 +307,7 @@ class _PageOutPageState extends State<PageOutPage> {
                   ...vm.listSection.map((s) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: ElevatedButton(
-                          onPressed: () => setState(() => vm.onSelectedSectionOut(s)),
+                          onPressed: s==vm.selectedSectionOut?null: () => setState(() => vm.onSelectedSectionOut(s)),
                           child: Text(s.name),
                         ),
                       )),

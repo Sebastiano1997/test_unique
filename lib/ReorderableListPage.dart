@@ -14,6 +14,15 @@ void main() {
   );
 }
 
+class StartWidget  extends StatelessWidget{
+  StartWidget({super.key, required this.child});
+  Widget child;
+  @override
+  Widget build(BuildContext context) {
+   return MaterialApp(home: Scaffold(body: child,),);
+  }
+}
+
 class MyAppReorderableListPage extends StatelessWidget {
   const MyAppReorderableListPage({super.key});
 
