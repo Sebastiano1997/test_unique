@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+
 import 'pages/PageOut.dart';
+import 'AlarmManagerExampleApp.dart';
+import 'CalendarApp.dart';
+import 'ReorderableListPage.dart';
+import 'HistoryObj.dart';
+import 'Note/LineNumberedTextField2.dart';
 
 void main() => runApp(const MyApp());
 
@@ -36,18 +42,66 @@ class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
   // Registra qui tutte le pagine/componenti isolate che vuoi poter selezionare
-  final List<PageDescriptor> _pages = const [
-    PageDescriptor(
+  final List<PageDescriptor> _pages = [
+    const PageDescriptor(
       title: 'Home',
       icon: Icons.home,
       page: _HomePlaceholder(),
     ),
-    PageDescriptor(
+    const PageDescriptor(
       title: 'Page Out',
       icon: Icons.exit_to_app,
       page: PageOut(),
     ),
-    // Aggiungi altre PageDescriptor qui per nuovi componenti
+
+    // App complete prese dal repository
+    const PageDescriptor(
+      title: 'AlarmManagerExampleApp',
+      icon: Icons.alarm,
+      page: AlarmManagerExampleApp(),
+    ),
+    const PageDescriptor(
+      title: 'CalendarApp',
+      icon: Icons.calendar_today,
+      page: CalendarApp(),
+    ),
+
+    // Widget presenti nel repo
+    const PageDescriptor(
+      title: 'LineNumberedTextField',
+      icon: Icons.format_list_numbered,
+      page: LineNumberedTextField2(),
+    ),
+
+    const PageDescriptor(
+      title: 'ReorderableListPage',
+      icon: Icons.swap_vert,
+      page: ReorderableListPage(),
+    ),
+
+    // Utility / viewer
+    const PageDescriptor(
+      title: 'HistoryObj',
+      icon: Icons.history,
+      page: HistoryObjPage(),
+    ),
+
+    // Placeholder per voci non trovate nel repo
+    const PageDescriptor(
+      title: 'EGI DartPad',
+      icon: Icons.code,
+      page: PlaceholderPage(title: 'EGI DartPad'),
+    ),
+    const PageDescriptor(
+      title: 'Scrapping',
+      icon: Icons.web,
+      page: PlaceholderPage(title: 'Scrapping'),
+    ),
+    const PageDescriptor(
+      title: 'testUl',
+      icon: Icons.bug_report,
+      page: PlaceholderPage(title: 'testUl'),
+    ),
   ];
 
   void _selectPage(int index) {
@@ -121,6 +175,40 @@ class _HomePlaceholder extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// Viewer semplice per HistoryObj (classe non-UI)
+class HistoryObjPage extends StatelessWidget {
+  const HistoryObjPage({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('HistoryObj')),
+      body: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text(
+          'HistoryObj è una classe di utilità (non è un Widget).\nQui puoi aggiungere una UI che usa HistoryObj per visualizzare la cronologia.',
+          style: TextStyle(fontSize: 16),
+        ),
+      ),
+    );
+  }
+}
+
+class PlaceholderPage extends StatelessWidget {
+  final String title;
+  const PlaceholderPage({Key? key, required this.title}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Text('Placeholder per "$title". Sostituisci con il widget reale.'),
       ),
     );
   }
