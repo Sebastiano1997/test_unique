@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import '../../lib/SharedPreferencesManager.dart';
+import 'SharedPreferencesManager.dart';
+
 
 abstract class ISaveLoad<T>
 {
