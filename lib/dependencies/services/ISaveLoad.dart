@@ -2,71 +2,59 @@ import 'dart:convert';
 
 import 'SharedPreferencesManager.dart';
 
-
-abstract class ISaveLoad<T>
-{
-  void save();
+abstract class ISaveLoad<T> {
+  Future<void> save(T value);
   Future<T?> load();
 }
 
-class SaveLoadJson<T> implements ISaveLoad<T>
-{
-  SaveLoadJson({required this.keyToSave,required this.toJson, required this.fromJson});
+class SaveLoadJson<T> implements ISaveLoad<T> {
+  SaveLoadJson({
+    required this.keyToSave,
+    required this.toJson,
+    required this.fromJson,
+  });
 
-  Map<String, dynamic> Function() toJson;
-  T Function(Map<String, dynamic> json) fromJson;
-  String keyToSave;
+  final String keyToSave;
+  final Map<String, dynamic> Function(T value) toJson;
+  final T Function(Map<String, dynamic> json) fromJson;
 
-  final String keyGeneral="key";
+  final String keyGeneral = 'key';
 
   @override
-  void save([String? key]) {
-    key??=keyToSave;
-    String json = jsonEncode(toJson()); // da oggetto--> stringa
-    SharedPreferencesManager().setSharedPreferences(key, json);
-    _saveKeyGeneral(key);
+  Future<void> save(T value) async {
+    final json = jsonEncode(toJson(value));
+    final manager = SharedPreferencesManager();
+
+    await manager.setSharedPreferences(keyToSave, json);
+    await _saveKeyGeneral(keyToSave);
   }
 
   @override
-  Future<T?> load([String? key]) async {
-    key??=keyToSave;
-    String? json=await SharedPreferencesManager().getSharedPreferences(key);
-    if(json==null) return null;
+  Future<T?> load() async {
+    final manager = SharedPreferencesManager();
+    final raw = await manager.getSharedPreferences(keyToSave);
 
-    Map<String, dynamic> map = jsonDecode(json) as Map<String, dynamic>; // da stringa--> Map
+    if (raw == null) {
+      return null;
+    }
 
-    return fromJson(map); // da Map--> a oggetto
+    final decoded = jsonDecode(raw);
+
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+
+    return fromJson(decoded);
   }
 
   Future<void> _saveKeyGeneral(String key) async {
-    List<String>? listKey=await SharedPreferencesManager().getListSharedPreferences(keyGeneral);
-    if(listKey==null || !listKey.contains(key))
-    {
-      listKey??=[];
-      listKey.add(key);
-      SharedPreferencesManager().setListSharedPreferences(keyGeneral, listKey);
+    final manager = SharedPreferencesManager();
+    final listKey = await manager.getListSharedPreferences(keyGeneral);
+    final current = listKey is List ? List<String>.from(listKey) : <String>[];
+
+    if (!current.contains(key)) {
+      current.add(key);
+      await manager.setListSharedPreferences(keyGeneral, current);
     }
   }
-
 }
-
-/// Map<String, dynamic> toJson() {
-//     return {
-//       'isTrue': isTrue.toString(),
-//       'X':X.saveLoad.toJson(),
-//       'listX': listX.map((value) => value.saveLoad.toJson()).toList(), // di 'X'=> extends ComponentJson<T>
-//       'min':min.toString()
-//     };
-//   }
-///ObjectThis fromJson(Map<String, dynamic> json) {
-//     ObjectThis objectThis= this;
-//
-//     objectThis.min=int.parse(json["min"]);
-//     objectThis.X=X().fromJson(json["X"]);
-//     objectThis.isTrue= (json["isTrue"]=="null")?null:bool.parse(json["isTrue"]);
-//     objectThis.listX=List<X>.from(json["listX"].map((i) => X().fromJson(i)).toList());
-//
-//     return objectThis;
-//   }
-
-// -
