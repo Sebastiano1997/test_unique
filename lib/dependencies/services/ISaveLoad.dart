@@ -17,14 +17,12 @@ class SaveLoadJson<T> implements ISaveLoad<T> {
   final String keyToSave;
   final Map<String, dynamic> Function(T value) toJson;
   final T Function(Map<String, dynamic> json) fromJson;
-
   final String keyGeneral = 'key';
 
   @override
   Future<void> save(T value) async {
-    final json = jsonEncode(toJson(value));
     final manager = SharedPreferencesManager();
-
+    final json = jsonEncode(toJson(value));
     await manager.setSharedPreferences(keyToSave, json);
     await _saveKeyGeneral(keyToSave);
   }
@@ -33,28 +31,22 @@ class SaveLoadJson<T> implements ISaveLoad<T> {
   Future<T?> load() async {
     final manager = SharedPreferencesManager();
     final raw = await manager.getSharedPreferences(keyToSave);
-
-    if (raw == null) {
-      return null;
-    }
+    if (raw is! String) return null;
 
     final decoded = jsonDecode(raw);
+    if (decoded is! Map) return null;
 
-    if (decoded is! Map<String, dynamic>) {
-      return null;
-    }
-
-    return fromJson(decoded);
+    return fromJson(Map<String, dynamic>.from(decoded));
   }
 
   Future<void> _saveKeyGeneral(String key) async {
     final manager = SharedPreferencesManager();
-    final listKey = await manager.getListSharedPreferences(keyGeneral);
-    final current = listKey is List ? List<String>.from(listKey) : <String>[];
+    final savedKeys = await manager.getListSharedPreferences(keyGeneral);
+    final keys = savedKeys == null ? <String>[] : List<String>.from(savedKeys);
 
-    if (!current.contains(key)) {
-      current.add(key);
-      await manager.setListSharedPreferences(keyGeneral, current);
+    if (!keys.contains(key)) {
+      keys.add(key);
+      await manager.setListSharedPreferences(keyGeneral, keys);
     }
   }
 }
