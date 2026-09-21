@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'pages/PageOut/ui/PageOutPage.dart';
 import 'pages/AlarmManagerExampleApp/ui/AlarmManagerExampleApp.dart';
 import 'pages/CalendarApp/ui/CalendarApp.dart';
 import 'pages/ReorderableListPage/ui/ReorderableListPage.dart';
@@ -10,7 +11,7 @@ import 'pages/Scrapping/ui/Scrapping.dart';
 void main() => runApp(const MyApp());
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -23,15 +24,14 @@ class MyApp extends StatelessWidget {
 }
 
 class PageDescriptor {
+  const PageDescriptor({required this.title, required this.icon, required this.page});
   final String title;
   final IconData icon;
   final Widget page;
-
-  const PageDescriptor({required this.title, required this.icon, required this.page});
 }
 
 class MainShell extends StatefulWidget {
-  const MainShell({Key? key}) : super(key: key);
+  const MainShell({super.key});
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -40,21 +40,17 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
-  final List<PageDescriptor> _pages = [
-    const PageDescriptor(title: 'Home', icon: Icons.home, page: _HomePlaceholder()),
-    const PageDescriptor(title: 'AlarmManagerExampleApp', icon: Icons.alarm, page: AlarmManagerExampleApp()),
-    const PageDescriptor(title: 'CalendarApp', icon: Icons.calendar_today, page: CalendarApp()),
-    const PageDescriptor(title: 'LineNumberedTextField', icon: Icons.format_list_numbered, page: LineNumberedTextField2()),
-    const PageDescriptor(title: 'ReorderableListPage', icon: Icons.swap_vert, page: ReorderableListPage()),
-    const PageDescriptor(title: 'HistoryObj', icon: Icons.history, page: HistoryObjPage()),
-    const PageDescriptor(title: 'EGI DartPad', icon: Icons.code, page: EgiDartPad()),
-    const PageDescriptor(title: 'Scrapping', icon: Icons.web, page: ScrappingPage()),
+  final List<PageDescriptor> _pages = const [
+    PageDescriptor(title: 'Home', icon: Icons.home, page: _HomePlaceholder()),
+    PageDescriptor(title: 'Page Out', icon: Icons.view_list, page: PageOutPage()),
+    PageDescriptor(title: 'AlarmManagerExampleApp', icon: Icons.alarm, page: AlarmManagerExampleApp()),
+    PageDescriptor(title: 'CalendarApp', icon: Icons.calendar_today, page: CalendarApp()),
+    PageDescriptor(title: 'LineNumberedTextField', icon: Icons.format_list_numbered, page: LineNumberedTextField2()),
+    PageDescriptor(title: 'ReorderableListPage', icon: Icons.swap_vert, page: ReorderableListPage()),
+    PageDescriptor(title: 'HistoryObj', icon: Icons.history, page: HistoryObjPage()),
+    PageDescriptor(title: 'EGI DartPad', icon: Icons.code, page: EgiDartPad()),
+    PageDescriptor(title: 'Scrapping', icon: Icons.web, page: ScrappingPage()),
   ];
-
-  void _selectPage(int index) {
-    setState(() => _selectedIndex = index);
-    Navigator.of(context).pop();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,67 +58,52 @@ class _MainShellState extends State<MainShell> {
       appBar: AppBar(title: Text(_pages[_selectedIndex].title)),
       drawer: Drawer(
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ListView(
             children: [
-              DrawerHeader(
-                decoration: BoxDecoration(color: Theme.of(context).primaryColorLight),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Selettore Pagine', style: TextStyle(fontSize: 24)),
-                ),
+              const DrawerHeader(
+                child: Text('Selettore Pagine', style: TextStyle(fontSize: 24)),
               ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _pages.length,
-                  itemBuilder: (context, index) {
-                    final p = _pages[index];
-                    return ListTile(
-                      leading: Icon(p.icon),
-                      title: Text(p.title),
-                      selected: index == _selectedIndex,
-                      onTap: () => _selectPage(index),
-                    );
-                  },
-                ),
-              ),
+              ..._pages.asMap().entries.map(
+                    (entry) => ListTile(
+                      leading: Icon(entry.value.icon),
+                      title: Text(entry.value.title),
+                      selected: entry.key == _selectedIndex,
+                      onTap: () {
+                        setState(() => _selectedIndex = entry.key);
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ),
             ],
           ),
         ),
       ),
       body: IndexedStack(
         index: _selectedIndex,
-        children: _pages.map((p) => p.page).toList(),
+        children: _pages.map((page) => page.page).toList(),
       ),
     );
   }
 }
 
 class _HomePlaceholder extends StatelessWidget {
-  const _HomePlaceholder({Key? key}) : super(key: key);
+  const _HomePlaceholder();
 
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24.0),
-        child: Text('Benvenuto! Seleziona una pagina dalla tendina a sinistra.'),
-      ),
+      child: Text('Benvenuto! Seleziona una pagina dalla tendina a sinistra.'),
     );
   }
 }
 
 class HistoryObjPage extends StatelessWidget {
-  const HistoryObjPage({Key? key}) : super(key: key);
+  const HistoryObjPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('HistoryObj')),
-      body: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('HistoryObj è una classe di utilità. Qui puoi aggiungere una UI che la usa.'),
-      ),
+    return const Scaffold(
+      body: Center(child: Text('HistoryObj è una classe di utilità.')),
     );
   }
 }
