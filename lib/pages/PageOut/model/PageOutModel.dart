@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../dependencies/services/ISaveLoad.dart';
 import '../data/PageOutDal.dart';
 import 'PageOutModels.dart';
+import 'package:intl/intl.dart';
 
 class ADU<T> extends ChangeNotifier {
   ADU(
@@ -114,6 +115,9 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
   String getSyntaxString() {
     return dm.list.map(_getSyntaxStringItem).join('\r\n');
   }
+  String getSyntaxStringWhereSection() {
+    return dm.list.where((i)=>i.section==selectedSectionOut).map(_getSyntaxStringItem).join('\r\n');
+  }
 
   String _getSyntaxStringItem(Out outItem) {
     final result = StringBuffer();
@@ -142,11 +146,22 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
           result.write(selectedSectionOut.name);
           break;
         case ItemFormOut.date:
-          result.write(outItem.date.toString());
+          String formattedDate = DateFormat('dd/MM/yyyy').format(outItem.date);
+          result.write(formattedDate);
           break;
       }
     }
 
     return result.toString();
+  }
+
+  void cleanHistory() {
+    this.dm.list.clear();
+    this.dal.save(dm);
+  }
+
+  void deleteItem(Out item) {
+    adu.delete(item);
+    dal.save(dm);
   }
 }

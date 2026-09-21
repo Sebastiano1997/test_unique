@@ -34,9 +34,9 @@ class SectionOut {
   SectionOut({
     required this.name,
     List<SyntaxBlockOut>? listSyntax,
-  }) : listSyntax = listSyntax ?? const [
-          SyntaxBlockOut(itemForm: ItemFormOut.value),
-        ];
+  }) : listSyntax = listSyntax ?? [
+    SyntaxBlockOut(itemForm: ItemFormOut.value),
+  ];
 
   String name;
   List<SyntaxBlockOut> listSyntax;
@@ -74,7 +74,8 @@ class PageOutDm {
     List<String>? listWhose,
     List<SectionOut>? listSection,
     List<Out>? list,
-  })  : listWhose = listWhose ?? ['A', 'B'],
+  })
+      : listWhose = listWhose ?? ['A', 'B'],
         listSection = listSection ?? createDefaultSections(),
         list = list ?? [];
 
@@ -90,19 +91,40 @@ class PageOutDm {
 
 List<SectionOut> createDefaultSections() {
   return [
-    SectionOut(
-      name: 'Life',
-      listSyntax: [
-        SyntaxBlockOut(itemForm: ItemFormOut.value, whose: 'A'),
-        SyntaxBlockOut(value: '\t'),
-        SyntaxBlockOut(itemForm: ItemFormOut.value, whose: 'B'),
-        SyntaxBlockOut(value: '\t'),
-        SyntaxBlockOut(itemForm: ItemFormOut.description),
-        SyntaxBlockOut(value: '\t'),
-        SyntaxBlockOut(itemForm: ItemFormOut.date),
-      ],
-    ),
-    SectionOut(name: 'Tax'),
-    SectionOut(name: 'A Personal'),
+  SectionOut(
+    name: 'Life',
+    listSyntax: [
+      SyntaxBlockOut(itemForm: ItemFormOut.value, whose: 'A'),
+      SyntaxBlockOut(value: '\t'),
+      SyntaxBlockOut(itemForm: ItemFormOut.value, whose: 'B'),
+      SyntaxBlockOut(value: '\t'),
+      SyntaxBlockOut(itemForm: ItemFormOut.description),
+      SyntaxBlockOut(value: '\t'),
+      SyntaxBlockOut(itemForm: ItemFormOut.date),
+    ],
+  )
+  ,
+  SectionOut(name: 'Tax',
+  listSyntax: [
+  SyntaxBlockOut(itemForm: ItemFormOut.value, whose: 'A'),
+  SyntaxBlockOut(value: '\t'),
+  SyntaxBlockOut(itemForm: ItemFormOut.value, whose: 'B'),
+  SyntaxBlockOut(value: '\t'),
+  SyntaxBlockOut(itemForm: ItemFormOut.description),
+  SyntaxBlockOut(value: '\t'),
+  SyntaxBlockOut(itemForm: ItemFormOut.date),
+  ],
+  ),
+  SectionOut(name: 'A Personal',
+    listSyntax: [
+  SyntaxBlockOut(itemForm: ItemFormOut.value, whose: 'A'),
+  SyntaxBlockOut(value: '\t'),
+  SyntaxBlockOut(itemForm: ItemFormOut.value, whose: 'B'),
+  SyntaxBlockOut(value: '\t'),
+  SyntaxBlockOut(itemForm: ItemFormOut.description),
+  SyntaxBlockOut(value: '\t'),
+  SyntaxBlockOut(itemForm: ItemFormOut.date),
+  ],
+  )
   ];
 }

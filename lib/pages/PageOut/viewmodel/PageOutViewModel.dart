@@ -67,8 +67,18 @@ class PageOutViewModel extends ChangeNotifier
   Future<void> buildAsync() => _model.buildAsync();
 
   @override
-  Future<void> onClickAddOut(String valueWhose, Out outItem) =>
-      _model.onClickAddOut(valueWhose, outItem);
+  Future<void> onClickAddOut(String valueWhose, Out outItem) async {
+    await _model.onClickAddOut(valueWhose, outItem);
+    selectedOut = Out(
+      value: selectedOut.value,
+      description: selectedOut.description,
+      whose: selectedOut.whose,
+
+      section: selectedSectionOut,
+      date: DateTime.now(),
+    );
+    notifyListeners();
+  }
 
   @override
   void onSelectedSectionOut(SectionOut sectionOut) {
@@ -87,5 +97,15 @@ class PageOutViewModel extends ChangeNotifier
     _model.removeListener(_forwardModelChanges);
     _model.dispose();
     super.dispose();
+  }
+
+  void cleanHistory() {
+    model.cleanHistory();
+    notifyListeners();
+  }
+
+  void deleteItem(Out item) {
+    model.deleteItem(item);
+    notifyListeners();
   }
 }

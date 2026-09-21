@@ -77,7 +77,7 @@ class _PageOutView extends StatelessWidget {
       children: vm.listSection
           .map(
             (section) => TextButton(
-              onPressed: () => vm.onSelectedSectionOut(section),
+              onPressed: vm.selectedSectionOut==section?null: () => vm.onSelectedSectionOut(section),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(section.name),
@@ -89,59 +89,64 @@ class _PageOutView extends StatelessWidget {
   }
 
   Widget _homeForm(BuildContext context, PageOutViewModel vm) {
-    return ComponentE3(
-      title: const Text('Home'),
-      children: [
-        _OutTextField(
-          label: 'Value',
-          initialValue: vm.selectedOut.value,
-          onChanged: (value) => vm.selectedOut.value = value,
-        ),
-        _OutTextField(
-          label: 'Description',
-          initialValue: vm.selectedOut.description,
-          onChanged: (value) => vm.selectedOut.description = value,
-        ),
-        Row(
+    return Consumer<PageOutViewModel>(
+      builder: (context, viewModel, child) {
+        return ComponentE3(
+          title: const Text('Home'),
           children: [
-            Expanded(
-              child: _OutTextField(
-                label: 'Date',
-                initialValue: vm.selectedOut.date.toIso8601String(),
-                onChanged: (value) {
-                  final date = DateTime.tryParse(value);
-                  if (date != null) vm.selectedOut.date = date;
-                },
-              ),
+            _OutTextField(
+              label: 'Value',
+              initialValue: viewModel.selectedOut.value,
+              onChanged: (value) => viewModel.selectedOut.value = value,
             ),
-            IconButton(
-              tooltip: 'Date now',
-              icon: const Icon(Icons.today),
-              onPressed: () {
-                vm.selectedOut.date = DateTime.now();
-                vm.notifyListeners();
-              },
+            _OutTextField(
+              label: 'Description',
+              initialValue: viewModel.selectedOut.description,
+              onChanged: (value) => viewModel.selectedOut.description = value,
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: _OutTextField(
+                    isIconRemove: false,
+                    label: 'Date',
+                    initialValue: viewModel.selectedOut.date.toIso8601String(),
+                    onChanged: (value) {
+                      final date = DateTime.tryParse(value);
+                      if (date != null) viewModel.selectedOut.date = date;
+                    },
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Date now',
+                  icon: const Icon(Icons.today),
+                  onPressed: () async {
+                    viewModel.selectedOut.date = (await selectDateTime(context,dateDefault:viewModel.selectedOut.date ))??DateTime.now();
+                    viewModel.notifyListeners();
+                  },
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _add(context, viewModel, 'A'),
+                    child: const Text('Add A'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _add(context, viewModel, 'B'),
+                    child: const Text('Add B'),
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => _add(context, vm, 'A'),
-                child: const Text('Add A'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => _add(context, vm, 'B'),
-                child: const Text('Add B'),
-              ),
-            ),
-          ],
-        ),
-      ],
+        );
+        },
     );
   }
 
@@ -151,19 +156,16 @@ class _PageOutView extends StatelessWidget {
     String whose,
   ) async {
     await vm.onClickAddOut(whose, vm.selectedOut);
-    vm.selectedOut = Out(
-      section: vm.selectedSectionOut,
-      date: DateTime.now(),
-    );
   }
 
   Widget _settingsList(BuildContext context, PageOutViewModel vm) {
     return ComponentE3(
+      getFatherChildren: (child)=>Container(child: child,height: 500,),
       title: const Text('Setting'),
       settings: [
         IconButton(
           tooltip: 'Copy',
-          icon: const Icon(Icons.copy),
+          icon: const Icon(Icons.copy_all),
           onPressed: () async {
             await Clipboard.setData(
               ClipboardData(text: vm.model.getSyntaxString()),
@@ -174,8 +176,31 @@ class _PageOutView extends StatelessWidget {
             );
           },
         ),
+        IconButton(
+          tooltip: 'Copy Section',
+          icon: const Icon(Icons.copy),
+          onPressed: () async {
+            await Clipboard.setData(
+              ClipboardData(text: vm.model.getSyntaxStringWhereSection()),
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Text copied for section')),
+            );
+          },
+        ),
+        IconButton(
+          tooltip: 'Clean',
+          icon: const Icon(Icons.clean_hands_rounded),
+          onPressed: () async {
+            vm.cleanHistory();
+          },
+        ),
       ],
-      children: vm.list.map((item) => _outItem(context, vm, item)).toList(),
+      isChildrenColumnOrListView: false,
+      children: vm.list.reversed.map((item) =>
+          _outItem(context, vm, item)
+      ).toList(),
     );
   }
 
@@ -185,12 +210,14 @@ class _PageOutView extends StatelessWidget {
     Out item,
   ) {
     return ComponentE3(
+      size: SizeE.medium,
+      isBorder: true,
       title: Text(item.section.name),
       settings: [
         IconButton(
           tooltip: 'Delete',
           icon: const Icon(Icons.delete),
-          onPressed: () => vm.adu.delete(item),
+          onPressed: () => vm.deleteItem(item),
         ),
       ],
       children: [
@@ -204,6 +231,7 @@ class _PageOutView extends StatelessWidget {
             },
           ),
           subtitle: const Text('value'),
+          size: SizeE.small,
         ),
         ComponentE3(
           title: _OutTextField(
@@ -215,6 +243,7 @@ class _PageOutView extends StatelessWidget {
             },
           ),
           subtitle: const Text('description'),
+          size: SizeE.small,
         ),
         ComponentE3(
           title: _WhoseSelector(
@@ -227,6 +256,7 @@ class _PageOutView extends StatelessWidget {
             },
           ),
           subtitle: const Text('whose'),
+          size: SizeE.small,
         ),
         ComponentE3(
           title: _SectionSelector(
@@ -239,18 +269,23 @@ class _PageOutView extends StatelessWidget {
             },
           ),
           subtitle: const Text('section'),
+          size: SizeE.small,
         ),
+
         ComponentE3(
-          title: _DateEditor(
-            date: item.date,
-            onChanged: (date) {
-              item.date = date;
+          title: Text(item.date.toLocal().toString()),
+          leading: IconButton(
+              onPressed: () async
+              {
+              item.date = await selectDateTime(context)??item.date;
               vm.model.dal.save(vm.model.dm);
               vm.notifyListeners();
-            },
-          ),
+              },
+              icon: Icon(Icons.calendar_month)),
           subtitle: const Text('date'),
+          size: SizeE.ssmall,
         ),
+
       ],
     );
   }
@@ -261,11 +296,14 @@ class _OutTextField extends StatefulWidget {
     required this.label,
     required this.initialValue,
     required this.onChanged,
+    this.isIconRemove=true,
+
   });
 
   final String label;
   final String initialValue;
   final ValueChanged<String> onChanged;
+  final bool isIconRemove;
 
   @override
   State<_OutTextField> createState() => _OutTextFieldState();
@@ -297,10 +335,20 @@ class _OutTextFieldState extends State<_OutTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      decoration: InputDecoration(labelText: widget.label),
-      onChanged: widget.onChanged,
+    return Row(
+      children: [
+        Container(
+          width: 100,
+          child: TextField(
+            controller: _controller,
+            decoration: InputDecoration(labelText: widget.label),
+            onChanged: widget.onChanged,
+          ),
+        ),
+        !widget.isIconRemove?SizedBox():IconButton(onPressed: ()=>setState(() {
+          _controller.text="";
+        }), icon: Icon(Icons.remove))
+      ],
     );
   }
 }
@@ -318,15 +366,18 @@ class _WhoseSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      value: values.contains(value) ? value : null,
-      decoration: const InputDecoration(labelText: 'whose'),
-      items: values
-          .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-          .toList(),
-      onChanged: (value) {
-        if (value != null) onChanged(value);
-      },
+    return Container(
+      width: 200,
+      child: DropdownButtonFormField<String>(
+        value: values.contains(value) ? value : null,
+        decoration: const InputDecoration(labelText: 'whose'),
+        items: values
+            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+            .toList(),
+        onChanged: (value) {
+          if (value != null) onChanged(value);
+        },
+      ),
     );
   }
 }
@@ -344,21 +395,24 @@ class _SectionSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      value: sections.any((section) => section.name == value) ? value : null,
-      decoration: const InputDecoration(labelText: 'section'),
-      items: sections
-          .map(
-            (section) => DropdownMenuItem(
-              value: section.name,
-              child: Text(section.name),
-            ),
-          )
-          .toList(),
-      onChanged: (value) {
-        if (value == null) return;
-        onChanged(sections.firstWhere((section) => section.name == value));
-      },
+    return Container(
+      width: 200,
+      child: DropdownButtonFormField<String>(
+        value: sections.any((section) => section.name == value) ? value : null,
+        decoration: const InputDecoration(labelText: 'section'),
+        items: sections
+            .map(
+              (section) => DropdownMenuItem(
+                value: section.name,
+                child: Text(section.name),
+              ),
+            )
+            .toList(),
+        onChanged: (value) {
+          if (value == null) return;
+          onChanged(sections.firstWhere((section) => section.name == value));
+        },
+      ),
     );
   }
 }
@@ -373,13 +427,24 @@ class _DateEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(date.toLocal().toString())),
+        Text(date.toLocal().toString()),
         IconButton(
           tooltip: 'Date now',
           icon: const Icon(Icons.today),
-          onPressed: () => onChanged(DateTime.now()),
+          onPressed: () async => onChanged(await selectDateTime(context)??DateTime.now()),
         ),
       ],
     );
   }
+}
+
+
+Future<DateTime?> selectDateTime( BuildContext context, {DateTime? dateDefault}) async {
+  final DateTime? picked = await showDatePicker(
+    context: context,
+    initialDate: dateDefault??DateTime.now(),
+    firstDate: DateTime(2020),
+    lastDate: DateTime(2030),
+  );
+  return picked;
 }

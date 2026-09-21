@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'pages/PageOut/ui/PageOutPage.dart';
-import 'pages/AlarmManagerExampleApp/ui/AlarmManagerExampleApp.dart';
 import 'pages/CalendarApp/ui/CalendarApp.dart';
 import 'pages/ReorderableListPage/ui/ReorderableListPage.dart';
 import 'pages/LineNumberedTextField/ui/LineNumberedTextField.dart';
@@ -41,9 +40,10 @@ class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
   final List<PageDescriptor> _pages = const [
+    PageDescriptor(title: 'PageOutPage', icon: Icons.other_houses_outlined, page: PageOutPage()),
     PageDescriptor(title: 'Home', icon: Icons.home, page: _HomePlaceholder()),
     PageDescriptor(title: 'Page Out', icon: Icons.view_list, page: PageOutPage()),
-    PageDescriptor(title: 'AlarmManagerExampleApp', icon: Icons.alarm, page: AlarmManagerExampleApp()),
+    //PageDescriptor(title: 'AlarmManagerExampleApp', icon: Icons.alarm, page: AlarmManagerExampleApp()),
     PageDescriptor(title: 'CalendarApp', icon: Icons.calendar_today, page: CalendarApp()),
     PageDescriptor(title: 'LineNumberedTextField', icon: Icons.format_list_numbered, page: LineNumberedTextField2()),
     PageDescriptor(title: 'ReorderableListPage', icon: Icons.swap_vert, page: ReorderableListPage()),
