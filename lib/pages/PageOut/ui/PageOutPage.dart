@@ -412,9 +412,8 @@ class _OutTextFieldValueState extends State<_OutTextFieldValue> {
   Widget build(BuildContext context) {
     _controller.text=widget.label;
 
-    ComponentE3(
-          title: 
-        Container(
+    return ComponentE3(
+          title: Container(
           width: 100,
           child: CustomInputField(
   label: _isNumeric ? 'Numbers' : 'Text',
@@ -440,8 +439,7 @@ settings:[
         ),
   ],
       
-        ),
-    return ;
+        );
   }
 }
 
