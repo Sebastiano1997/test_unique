@@ -234,8 +234,8 @@ class _PageOutView extends StatelessWidget {
         ),
       ],
       children: [
-        ComponentE3(
-          title: _OutTextField(
+        // #break
+         _OutTextFieldValue(
             label: 'value',
             initialValue: item.value,
             onChanged: (value) {
@@ -243,9 +243,6 @@ class _PageOutView extends StatelessWidget {
               vm.model.dal.save(vm.model.dm);
             },
           ),
-          subtitle: const Text('value'),
-          size: SizeE.small,
-        ),
         ComponentE3(
           title: _OutTextField(
             label: 'description',
@@ -363,6 +360,88 @@ class _OutTextFieldState extends State<_OutTextField> {
         }), icon: Icon(Icons.remove))
       ],
     );
+  }
+}
+
+
+class _OutTextFieldValue extends StatefulWidget {
+  const _OutTextFieldValue({
+    required this.label,
+    required this.initialValue,
+    required this.onChanged,
+    this.isIconRemove=true,
+
+  });
+
+  final String label;
+  final String initialValue;
+  final ValueChanged<String> onChanged;
+  final bool isIconRemove;
+
+  @override
+  State<_OutTextFieldValue> createState() => _OutTextFieldValueState();
+}
+
+class _OutTextFieldValueState extends State<_OutTextFieldValue> {
+  late final TextEditingController _controller;
+
+  bool _isNumeric=true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void didUpdateWidget(covariant _OutTextFieldValue oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialValue != widget.initialValue &&
+        _controller.text != widget.initialValue) {
+      _controller.text = widget.initialValue;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _controller.text=widget.label;
+
+    ComponentE3(
+          title: 
+        Container(
+          width: 100,
+          child: CustomInputField(
+  label: _isNumeric ? 'Numbers' : 'Text',
+  controller: _controller,
+  isNumeric: _isNumeric,
+  onChanged: widget.onChanged,
+),
+        ),
+          subtitle: const Text('value'),
+          size: SizeE.small,
+      leading: !widget.isIconRemove?SizedBox():IconButton(onPressed: ()=>setState(() {
+          _controller.text="";
+        }), icon: Icon(Icons.remove)),
+settings:[
+  SwitchListTile(
+          title: Text(_isNumeric ? 'Numeric' : 'Text'),
+          value: _isNumeric,
+          onChanged: (bool value) {
+            setState(() {
+              _isNumeric = value;
+            });
+          },
+        ),
+  ],
+      
+        ),
+    return ;
   }
 }
 
