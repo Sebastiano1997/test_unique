@@ -190,6 +190,19 @@ class _PageOutView extends StatelessWidget {
           },
         ),
         IconButton(
+          tooltip: 'Copy Section Order',
+          icon: const Icon(Icons.copy),
+          onPressed: () async {
+            await Clipboard.setData(
+              ClipboardData(text: vm.model.getSyntaxStringWhereSectionOrder()),
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Text copied for the section Order')),
+            );
+          },
+        ),
+        IconButton(
           tooltip: 'Clean',
           icon: const Icon(Icons.clean_hands_rounded),
           onPressed: () async {
