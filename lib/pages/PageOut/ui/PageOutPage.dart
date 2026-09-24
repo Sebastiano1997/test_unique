@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../Component/ComponentE.dart';
+import '../../../Component/IconExpandedList.dart';
 import '../model/PageOutModels.dart';
 import '../viewmodel/PageOutViewModel.dart';
 
@@ -94,7 +95,7 @@ class _PageOutView extends StatelessWidget {
         return ComponentE3(
           title: const Text('Home'),
           children: [
-            _OutTextField(
+            _OutTextFieldValue(
               label: 'Value',
               initialValue: viewModel.selectedOut.value,
               onChanged: (value) => viewModel.selectedOut.value = value,
@@ -232,10 +233,12 @@ class _PageOutView extends StatelessWidget {
           icon: const Icon(Icons.delete),
           onPressed: () => vm.deleteItem(item),
         ),
+        IconExpandedList(isOnOff: false,),
+        Text(item.description)
       ],
       children: [
         // #break
-         _OutTextFieldValue(
+         _OutTextField(
             label: 'value',
             initialValue: item.value,
             onChanged: (value) {
@@ -410,7 +413,7 @@ class _OutTextFieldValueState extends State<_OutTextFieldValue> {
 
   @override
   Widget build(BuildContext context) {
-    _controller.text=widget.label;
+    //_controller.text=widget.label;
 
     return ComponentE3(
           title: Container(
@@ -428,16 +431,21 @@ class _OutTextFieldValueState extends State<_OutTextFieldValue> {
           _controller.text="";
         }), icon: Icon(Icons.remove)),
 settings:[
-  SwitchListTile(
-          title: Text(_isNumeric ? 'Numeric' : 'Text'),
-          value: _isNumeric,
-          onChanged: (bool value) {
-            setState(() {
-              _isNumeric = value;
-            });
-          },
-        ),
-  ],
+  Container(
+    width: 100, // Ora 100px bastano e avanzano!
+    child: Center(
+      child: Switch(
+        value: _isNumeric,
+        onChanged: (bool value) {
+          setState(() {
+            _isNumeric = value;
+          });
+        },
+      ),
+    ),
+  )
+
+],
       
         );
   }
@@ -538,3 +546,33 @@ Future<DateTime?> selectDateTime( BuildContext context, {DateTime? dateDefault})
   );
   return picked;
 }
+
+class CustomInputField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final bool isNumeric;
+  final ValueChanged<String>? onChanged;
+
+  const CustomInputField({
+    Key? key,
+    required this.label,
+    required this.controller,
+    required this.isNumeric,
+    this.onChanged,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      // Imposta il tipo di tastiera in base al flag booleano
+      keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+}
+
