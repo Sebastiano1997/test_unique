@@ -64,7 +64,7 @@ class PageOutViewModel extends ChangeNotifier
   SectionOut get selectedSectionOut => _model.selectedSectionOut;
 
   @override
-  Future<void> buildAsync() => _model.buildAsync();
+  Future<bool> buildAsync() => _model.buildAsync();
 
   @override
   Future<void> onClickAddOut(String valueWhose, Out outItem) async {

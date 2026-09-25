@@ -95,8 +95,9 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
   }
 
   @override
-  Future<void> buildAsync() async {
+  Future<bool> buildAsync() async {
     dm = await dal.load();
+    return true;
   }
 
   @override

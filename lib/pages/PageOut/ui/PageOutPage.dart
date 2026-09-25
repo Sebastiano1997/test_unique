@@ -160,61 +160,66 @@ class _PageOutView extends StatelessWidget {
   }
 
   Widget _settingsList(BuildContext context, PageOutViewModel vm) {
-    return ComponentE3(
-      getFatherChildren: (child)=>Container(child: child,height: 500,),
-      title: const Text('Setting'),
-      settings: [
-        IconButton(
-          tooltip: 'Copy',
-          icon: const Icon(Icons.copy_all),
-          onPressed: () async {
-            await Clipboard.setData(
-              ClipboardData(text: vm.model.getSyntaxString()),
-            );
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Text copied')),
-            );
-          },
-        ),
-        IconButton(
-          tooltip: 'Copy Section',
-          icon: const Icon(Icons.copy),
-          onPressed: () async {
-            await Clipboard.setData(
-              ClipboardData(text: vm.model.getSyntaxStringWhereSection()),
-            );
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Text copied for section')),
-            );
-          },
-        ),
-        IconButton(
-          tooltip: 'Copy Section Order',
-          icon: const Icon(Icons.copy),
-          onPressed: () async {
-            await Clipboard.setData(
-              ClipboardData(text: vm.model.getSyntaxStringWhereSectionOrder()),
-            );
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Text copied for the section Order')),
-            );
-          },
-        ),
-        IconButton(
-          tooltip: 'Clean',
-          icon: const Icon(Icons.clean_hands_rounded),
-          onPressed: () async {
-            vm.cleanHistory();
-          },
-        ),
-      ],
-      isChildrenColumnOrListView: false,
-      children: vm.list.reversed.map((item) =>
-          _outItem(context, vm, item)
-      ).toList(),
+    return FutureBuilder<bool>(
+      future: vm.buildAsync(),
+      builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+        return ComponentE3(
+          getFatherChildren: (child)=>Container(child: child,height: 500,),
+          title: const Text('Setting'),
+          settings: [
+            IconButton(
+              tooltip: 'Copy',
+              icon: const Icon(Icons.copy_all),
+              onPressed: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: vm.model.getSyntaxString()),
+                );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Text copied')),
+                );
+              },
+            ),
+            IconButton(
+              tooltip: 'Copy Section',
+              icon: const Icon(Icons.copy),
+              onPressed: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: vm.model.getSyntaxStringWhereSection()),
+                );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Text copied for section')),
+                );
+              },
+            ),
+            IconButton(
+              tooltip: 'Copy Section Order',
+              icon: const Icon(Icons.copy),
+              onPressed: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: vm.model.getSyntaxStringWhereSectionOrder()),
+                );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Text copied for the section Order')),
+                );
+              },
+            ),
+            IconButton(
+              tooltip: 'Clean',
+              icon: const Icon(Icons.clean_hands_rounded),
+              onPressed: () async {
+                vm.cleanHistory();
+              },
+            ),
+          ],
+          isChildrenColumnOrListView: false,
+          children: vm.list.reversed.map((item) =>
+              _outItem(context, vm, item)
+          ).toList(),
+        );
+    },
     );
   }
 
