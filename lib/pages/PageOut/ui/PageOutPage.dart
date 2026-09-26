@@ -12,10 +12,16 @@ class PageOutPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<PageOutViewModel>(
-      create: (_) => PageOutViewModel(),
+    PageOutViewModel vm=PageOutViewModel();
+    return
+      FutureBuilder<bool>(
+          future: vm.buildAsync(),
+          builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+      return ChangeNotifierProvider<PageOutViewModel>(
+      create: (_) => vm,
       child: const _PageOutView(),
     );
+  });
   }
 }
 
@@ -24,27 +30,29 @@ class _PageOutView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return DefaultTabController(
-      length: 2,
-      child: Column(
-        children: [
-          const TabBar(
-            tabs: [
-              Tab(text: 'Home'),
-              Tab(text: 'Setting'),
-            ],
-          ),
-          Expanded(
-            child: TabBarView(
+            length: 2,
+            child: Column(
               children: [
-                _home(context),
-                _setting(context),
+                const TabBar(
+                  tabs: [
+                    Tab(text: 'Home'),
+                    Tab(text: 'Setting'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _home(context),
+                      _setting(context),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
+          );
+
   }
 
   Widget _home(BuildContext context) {
@@ -160,66 +168,61 @@ class _PageOutView extends StatelessWidget {
   }
 
   Widget _settingsList(BuildContext context, PageOutViewModel vm) {
-    return FutureBuilder<bool>(
-      future: vm.buildAsync(),
-      builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
-        return ComponentE3(
-          getFatherChildren: (child)=>Container(child: child,height: 500,),
-          title: const Text('Setting'),
-          settings: [
-            IconButton(
-              tooltip: 'Copy',
-              icon: const Icon(Icons.copy_all),
-              onPressed: () async {
-                await Clipboard.setData(
-                  ClipboardData(text: vm.model.getSyntaxString()),
-                );
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Text copied')),
-                );
-              },
-            ),
-            IconButton(
-              tooltip: 'Copy Section',
-              icon: const Icon(Icons.copy),
-              onPressed: () async {
-                await Clipboard.setData(
-                  ClipboardData(text: vm.model.getSyntaxStringWhereSection()),
-                );
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Text copied for section')),
-                );
-              },
-            ),
-            IconButton(
-              tooltip: 'Copy Section Order',
-              icon: const Icon(Icons.copy),
-              onPressed: () async {
-                await Clipboard.setData(
-                  ClipboardData(text: vm.model.getSyntaxStringWhereSectionOrder()),
-                );
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Text copied for the section Order')),
-                );
-              },
-            ),
-            IconButton(
-              tooltip: 'Clean',
-              icon: const Icon(Icons.clean_hands_rounded),
-              onPressed: () async {
-                vm.cleanHistory();
-              },
-            ),
-          ],
-          isChildrenColumnOrListView: false,
-          children: vm.list.reversed.map((item) =>
-              _outItem(context, vm, item)
-          ).toList(),
-        );
-    },
+    return ComponentE3(
+      getFatherChildren: (child)=>Container(child: child,height: 500,),
+      title: const Text('Setting'),
+      settings: [
+        IconButton(
+          tooltip: 'Copy',
+          icon: const Icon(Icons.copy_all),
+          onPressed: () async {
+            await Clipboard.setData(
+              ClipboardData(text: vm.model.getSyntaxString()),
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Text copied')),
+            );
+          },
+        ),
+        IconButton(
+          tooltip: 'Copy Section',
+          icon: const Icon(Icons.copy),
+          onPressed: () async {
+            await Clipboard.setData(
+              ClipboardData(text: vm.model.getSyntaxStringWhereSection()),
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Text copied for section')),
+            );
+          },
+        ),
+        IconButton(
+          tooltip: 'Copy Section Order',
+          icon: const Icon(Icons.copy),
+          onPressed: () async {
+            await Clipboard.setData(
+              ClipboardData(text: vm.model.getSyntaxStringWhereSectionOrder()),
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Text copied for the section Order')),
+            );
+          },
+        ),
+        IconButton(
+          tooltip: 'Clean',
+          icon: const Icon(Icons.clean_hands_rounded),
+          onPressed: () async {
+            vm.cleanHistory();
+          },
+        ),
+      ],
+      isChildrenColumnOrListView: false,
+      children: vm.list.reversed.map((item) =>
+          _outItem(context, vm, item)
+      ).toList(),
     );
   }
 
@@ -436,21 +439,24 @@ class _OutTextFieldValueState extends State<_OutTextFieldValue> {
           _controller.text="";
         }), icon: Icon(Icons.remove)),
 settings:[
-  Container(
-    width: 100, // Ora 100px bastano e avanzano!
-    child: Center(
-      child: Switch(
-        value: _isNumeric,
-        onChanged: (bool value) {
-          setState(() {
-            _isNumeric = value;
-          });
-        },
-      ),
-    ),
-  )
+
 
 ],
+      children: [
+        Container(
+          width: 100, // Ora 100px bastano e avanzano!
+          child: Center(
+            child: Switch(
+              value: _isNumeric,
+              onChanged: (bool value) {
+                setState(() {
+                  _isNumeric = value;
+                });
+              },
+            ),
+          ),
+        )
+      ],
       
         );
   }
