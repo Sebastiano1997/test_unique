@@ -159,14 +159,6 @@ class _PageOutView extends StatelessWidget {
     );
   }
 
-  Future<void> _add(
-    BuildContext context,
-    PageOutViewModel vm,
-    String whose,
-  ) async {
-    await vm.onClickAddOut(whose, vm.selectedOut);
-  }
-
   Widget _settingsList(BuildContext context, PageOutViewModel vm) {
     return ComponentE3(
       getFatherChildren: (child)=>Container(child: child,height: 500,),
@@ -235,14 +227,15 @@ class _PageOutView extends StatelessWidget {
       size: SizeE.medium,
       isBorder: true,
       title: Text(item.section.name),
+      subtitle: Text(item.description),
       settings: [
         IconButton(
           tooltip: 'Delete',
           icon: const Icon(Icons.delete),
           onPressed: () => vm.deleteItem(item),
         ),
-        IconExpandedList(isOnOff: false,),
-        Text(item.description)
+        IconExpandedList(
+          isOnOff: false,),
       ],
       children: [
         // #break
@@ -251,7 +244,7 @@ class _PageOutView extends StatelessWidget {
             initialValue: item.value,
             onChanged: (value) {
               item.value = value;
-              vm.model.dal.save(vm.model.dm);
+              vm.onChangedValueField();
             },
           ),
         ComponentE3(
@@ -260,7 +253,7 @@ class _PageOutView extends StatelessWidget {
             initialValue: item.description,
             onChanged: (value) {
               item.description = value;
-              vm.model.dal.save(vm.model.dm);
+              vm.onChangedValueField();
             },
           ),
           subtitle: const Text('description'),
@@ -272,8 +265,7 @@ class _PageOutView extends StatelessWidget {
             values: vm.listWhose,
             onChanged: (value) {
               item.whose = value;
-              vm.model.dal.save(vm.model.dm);
-              vm.notifyListeners();
+              vm.onChangedValueField();
             },
           ),
           subtitle: const Text('whose'),
@@ -285,8 +277,7 @@ class _PageOutView extends StatelessWidget {
             sections: vm.listSection,
             onChanged: (section) {
               item.section = section;
-              vm.model.dal.save(vm.model.dm);
-              vm.notifyListeners();
+              vm.onChangedValueField();
             },
           ),
           subtitle: const Text('section'),
@@ -299,8 +290,7 @@ class _PageOutView extends StatelessWidget {
               onPressed: () async
               {
               item.date = await selectDateTime(context)??item.date;
-              vm.model.dal.save(vm.model.dm);
-              vm.notifyListeners();
+              vm.onChangedValueField();
               },
               icon: Icon(Icons.calendar_month)),
           subtitle: const Text('date'),
@@ -310,6 +300,16 @@ class _PageOutView extends StatelessWidget {
       ],
     );
   }
+
+
+  Future<void> _add(
+      BuildContext context,
+      PageOutViewModel vm,
+      String whose,
+      ) async {
+    await vm.onClickAddOut(whose, vm.selectedOut);
+  }
+
 }
 
 class _OutTextField extends StatefulWidget {
@@ -366,8 +366,10 @@ class _OutTextFieldState extends State<_OutTextField> {
             onChanged: widget.onChanged,
           ),
         ),
-        !widget.isIconRemove?SizedBox():IconButton(onPressed: ()=>setState(() {
+        !widget.isIconRemove?SizedBox():IconButton(
+            onPressed: ()=>setState(() {
           _controller.text="";
+          widget.onChanged("");
         }), icon: Icon(Icons.remove))
       ],
     );
@@ -395,6 +397,7 @@ class _OutTextFieldValue extends StatefulWidget {
 
 class _OutTextFieldValueState extends State<_OutTextFieldValue> {
   late final TextEditingController _controller;
+  late final _focusNode;
 
   bool _isNumeric=true;
 
@@ -402,6 +405,7 @@ class _OutTextFieldValueState extends State<_OutTextFieldValue> {
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialValue);
+    _focusNode = FocusNode();
   }
 
   @override
@@ -429,6 +433,7 @@ class _OutTextFieldValueState extends State<_OutTextFieldValue> {
           child: CustomInputField(
   label: _isNumeric ? 'Numbers' : 'Text',
   controller: _controller,
+            focusNode:_focusNode,
   isNumeric: _isNumeric,
   onChanged: widget.onChanged,
 ),
@@ -438,10 +443,6 @@ class _OutTextFieldValueState extends State<_OutTextFieldValue> {
       leading: !widget.isIconRemove?SizedBox():IconButton(onPressed: ()=>setState(() {
           _controller.text="";
         }), icon: Icon(Icons.remove)),
-settings:[
-
-
-],
       children: [
         Container(
           width: 100, // Ora 100px bastano e avanzano!
@@ -449,8 +450,25 @@ settings:[
             child: Switch(
               value: _isNumeric,
               onChanged: (bool value) {
+                //FocusScope.of(context).unfocus();
+
                 setState(() {
                   _isNumeric = value;
+                });
+                //_focusNode.requestFocus();
+
+
+                FocusScope.of(context).unfocus();
+
+                //_focusNode.unfocus();
+
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  String text=_controller.text;
+                  if(!_isNumeric && (text.isEmpty || text[0]!='='))
+                    {
+                      _controller.text="="+text;
+                    }
+                  _focusNode.requestFocus();
                 });
               },
             ),
@@ -561,6 +579,7 @@ Future<DateTime?> selectDateTime( BuildContext context, {DateTime? dateDefault})
 class CustomInputField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool isNumeric;
   final ValueChanged<String>? onChanged;
 
@@ -569,6 +588,7 @@ class CustomInputField extends StatelessWidget {
     required this.label,
     required this.controller,
     required this.isNumeric,
+    required this.focusNode,
     this.onChanged,
   }) : super(key: key);
 
@@ -577,6 +597,7 @@ class CustomInputField extends StatelessWidget {
     return TextField(
       controller: controller,
       onChanged: onChanged,
+      focusNode: focusNode,
       // Imposta il tipo di tastiera in base al flag booleano
       keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(

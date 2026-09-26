@@ -21,7 +21,7 @@ class IconExpandedList extends StatelessWidget
 
   bool isOnOff;
 
-  bool Function()? onPressed;
+  bool? Function()? onPressed;
   Function(bool) onPressedInternal=(i){};
 
   void callPressInternal()

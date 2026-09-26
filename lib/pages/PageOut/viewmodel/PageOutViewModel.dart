@@ -108,4 +108,9 @@ class PageOutViewModel extends ChangeNotifier
     model.deleteItem(item);
     notifyListeners();
   }
+
+  void onChangedValueField() {
+    model.dal.save(model.dm);
+    //notifyListeners();
+  }
 }
