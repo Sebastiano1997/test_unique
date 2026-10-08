@@ -58,6 +58,8 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
   late ADU<Out> _adu;
   late SectionOut _selectedSectionOut;
 
+  final String sectionNamePersonal2='Personal/2';
+
   void _createAdu() {
     _adu = ADU<Out>(_dm.list, callBack: () => _dal.save(_dm));
   }
@@ -104,6 +106,17 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
   Future<void> onClickAddOut(String valueWhose, Out outItem) async {
     outItem.whose = valueWhose;
     outItem.section = selectedSectionOut;
+
+    if(outItem.section.name==sectionNamePersonal2)
+      {
+        String value=outItem.value;
+        if(value!="")
+          {
+            if(value[0]=='=') value=value.substring(1);
+            value="=("+value+")/2";
+          }
+        outItem.value=value;
+      }
     await adu.add(outItem);
   }
 
@@ -114,7 +127,24 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
 
   @override
   String getSyntaxString() {
-    return dm.list.map(_getSyntaxStringItem).join('\r\n');
+    List<Out> listResult=[];
+
+    var list=dm.list;
+    list.sort((a, b) => a.section.name.compareTo(b.section.name));
+
+
+    String? sectionName;
+    for(var i in list)
+      {
+        if(sectionName==null || sectionName!=i.section.name)
+          {
+            sectionName=i.section.name;
+            listResult.add(Out(section: i.section, date: i.date)..description=i.section.name);
+          }
+        listResult.add(i);
+      }
+    return listResult
+    .map(_getSyntaxStringItem).join('\r\n');
   }
 
   String getSyntaxStringWhereSection() {
@@ -124,14 +154,6 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
         .join('\r\n');
   }
 
-  String getSyntaxStringWhereSectionOrder() {
-    final items = dm.list.where((i) => i.section == selectedSectionOut);
-
-    return [
-      '--- ${selectedSectionOut.name} ---',
-      ...items.map(_getSyntaxStringItem),
-    ].join('\r\n');
-  }
 
   String _getSyntaxStringItem(Out outItem) {
     final result = StringBuffer();
