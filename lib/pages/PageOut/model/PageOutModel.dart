@@ -116,19 +116,22 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
   String getSyntaxString() {
     return dm.list.map(_getSyntaxStringItem).join('\r\n');
   }
+
   String getSyntaxStringWhereSection() {
-    return dm.list.where((i)=>i.section==selectedSectionOut).map(_getSyntaxStringItem).join('\r\n');
+    return dm.list
+        .where((i) => i.section == selectedSectionOut)
+        .map(_getSyntaxStringItem)
+        .join('\r\n');
   }
 
   String getSyntaxStringWhereSectionOrder() {
-  final items = dm.list.where((i) => i.section == selectedSectionOut);
+    final items = dm.list.where((i) => i.section == selectedSectionOut);
 
-  return [
-    '--- $selectedSectionOut ---',
-    ...items.map(_getSyntaxStringItem),
-  ].join('\r\n');
-}
-
+    return [
+      '--- ${selectedSectionOut.name} ---',
+      ...items.map(_getSyntaxStringItem),
+    ].join('\r\n');
+  }
 
   String _getSyntaxStringItem(Out outItem) {
     final result = StringBuffer();
