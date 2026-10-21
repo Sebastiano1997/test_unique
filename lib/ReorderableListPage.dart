@@ -8,14 +8,14 @@ const uuid = Uuid();
 
 void main() {
   runApp(
-      StartWidget(
+      StartWidgetReorderListPage(
           child: MyAppReorderableListPage()
       )
   );
 }
 
-class StartWidget  extends StatelessWidget{
-  StartWidget({super.key, required this.child});
+class StartWidgetReorderListPage  extends StatelessWidget{
+  StartWidgetReorderListPage({super.key, required this.child});
   Widget child;
   @override
   Widget build(BuildContext context) {

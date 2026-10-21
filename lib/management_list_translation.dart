@@ -47,7 +47,17 @@ class ManagementList<T extends IItemForManagement> extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.arrow_forward),
             tooltip: 'open item',
-            onPressed: () {},
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => Dialog(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child:ManagementItem(item: item, adu: adu, child: Text("...."),)
+                  ),
+                ),
+              );
+            },
           ),
         ],
         children: [
@@ -149,7 +159,7 @@ class ManagementListExamplePage extends StatelessWidget {
 
 void main() {
   runApp(
-    const MaterialApp(
+    MaterialApp(
       debugShowCheckedModeBanner: false,
       home: ManagementListExamplePage(),
     ),

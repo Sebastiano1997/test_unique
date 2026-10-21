@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'management_list_translation.dart';
 import 'pages/PageOut/ui/PageOutPage.dart';
 import 'pages/CalendarApp/ui/CalendarApp.dart';
 import 'pages/ReorderableListPage/ui/ReorderableListPage.dart';
@@ -39,17 +40,18 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
-  final List<PageDescriptor> _pages = const [
-    PageDescriptor(title: 'PageOutPage', icon: Icons.other_houses_outlined, page: PageOutPage()),
-    PageDescriptor(title: 'Home', icon: Icons.home, page: _HomePlaceholder()),
-    PageDescriptor(title: 'Page Out', icon: Icons.view_list, page: PageOutPage()),
+  final List<PageDescriptor> _pages = [
+    PageDescriptor(title: 'StartWidgetReorderListPage', icon: Icons.other_houses_outlined, page: ManagementListExamplePage() ),
+    const PageDescriptor(title: 'PageOutPage', icon: Icons.other_houses_outlined, page: PageOutPage()),
+    const PageDescriptor(title: 'Home', icon: Icons.home, page: _HomePlaceholder()),
+    const PageDescriptor(title: 'Page Out', icon: Icons.view_list, page: PageOutPage()),
     //PageDescriptor(title: 'AlarmManagerExampleApp', icon: Icons.alarm, page: AlarmManagerExampleApp()),
-    PageDescriptor(title: 'CalendarApp', icon: Icons.calendar_today, page: CalendarApp()),
-    PageDescriptor(title: 'LineNumberedTextField', icon: Icons.format_list_numbered, page: LineNumberedTextField2()),
-    PageDescriptor(title: 'ReorderableListPage', icon: Icons.swap_vert, page: ReorderableListPage()),
-    PageDescriptor(title: 'HistoryObj', icon: Icons.history, page: HistoryObjPage()),
-    PageDescriptor(title: 'EGI DartPad', icon: Icons.code, page: EgiDartPad()),
-    PageDescriptor(title: 'Scrapping', icon: Icons.web, page: ScrappingPage()),
+    const PageDescriptor(title: 'CalendarApp', icon: Icons.calendar_today, page: CalendarApp()),
+    const PageDescriptor(title: 'LineNumberedTextField', icon: Icons.format_list_numbered, page: LineNumberedTextField2()),
+    const PageDescriptor(title: 'ReorderableListPage', icon: Icons.swap_vert, page: ReorderableListPage()),
+    const PageDescriptor(title: 'HistoryObj', icon: Icons.history, page: HistoryObjPage()),
+    const PageDescriptor(title: 'EGI DartPad', icon: Icons.code, page: EgiDartPad()),
+    const PageDescriptor(title: 'Scrapping', icon: Icons.web, page: ScrappingPage()),
   ];
 
   @override
