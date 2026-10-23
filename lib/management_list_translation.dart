@@ -24,10 +24,12 @@ class ManagementList<T extends IItemForManagement> extends StatelessWidget {
     super.key,
     required this.adu,
     required this.newItem,
+    required this.child,
   });
 
   final ADU<T> adu;
   final T Function() newItem;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -48,14 +50,9 @@ class ManagementList<T extends IItemForManagement> extends StatelessWidget {
             icon: const Icon(Icons.arrow_forward),
             tooltip: 'open item',
             onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => Dialog(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child:ManagementItem(item: item, adu: adu, child: Text("...."),)
-                  ),
-                ),
+              ManagementItem<T>.openManagementItemPopup(
+                context,
+                ManagementItem<T>(item,adu,child)
               );
             },
           ),
@@ -87,6 +84,36 @@ class ManagementList<T extends IItemForManagement> extends StatelessWidget {
       isExpandedChildren: true,
     );
   }
+
+
+
+  static void openManagementPopup<T>(
+    BuildContext context,
+    ManagementList<T> father
+  ) 
+  {
+    double width=420;
+    double height=520;
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: father
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  
 }
 
 class ManagementItem<T extends IItemForManagement> extends StatelessWidget {
@@ -124,6 +151,34 @@ class ManagementItem<T extends IItemForManagement> extends StatelessWidget {
       children: [child],
     );
   }
+
+static void openManagementItemPopup<T>(
+    BuildContext context,
+    ManagementItem<T> father
+  ) 
+  {
+    double width=420;
+    double height=520;
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: father
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  
 }
 
 class DemoItem implements IItemForManagement {
