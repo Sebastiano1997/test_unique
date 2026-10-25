@@ -41,7 +41,7 @@ class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
   final List<PageDescriptor> _pages = [
-    PageDescriptor(title: 'StartWidgetReorderListPage', icon: Icons.other_houses_outlined, page: ManagementListExamplePage() ),
+    //PageDescriptor(title: 'StartWidgetReorderListPage', icon: Icons.other_houses_outlined, page: ManagementListExamplePage() ),
     const PageDescriptor(title: 'PageOutPage', icon: Icons.other_houses_outlined, page: PageOutPage()),
     const PageDescriptor(title: 'Home', icon: Icons.home, page: _HomePlaceholder()),
     const PageDescriptor(title: 'Page Out', icon: Icons.view_list, page: PageOutPage()),

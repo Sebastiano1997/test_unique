@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:test_unique/management_list_translation.dart';
 
 import '../../../Component/ComponentE.dart';
 import '../../../Component/IconExpandedList.dart';
@@ -42,11 +43,14 @@ class _PageOutView extends StatelessWidget {
                   ],
                 ),
                 Expanded(
-                  child: TabBarView(
-                    children: [
-                      _home(context),
-                      _setting(context),
-                    ],
+                  child: Consumer<PageOutViewModel>(
+                    builder: (context, viewModel, child) {
+                      return TabBarView(
+                        children: [
+                          _home(context),
+                          _setting(context),
+                        ],
+                      ); },
                   ),
                 ),
               ],
@@ -164,6 +168,30 @@ class _PageOutView extends StatelessWidget {
       getFatherChildren: (child)=>Container(child: child,height: 500,),
       title: const Text('Setting'),
       settings: [
+        IconButton(
+          tooltip: 'refresh',
+          icon: const Icon(Icons.refresh),
+          onPressed: () async {
+            vm.notifyListeners();
+          },
+        ),
+        IconButton(
+          tooltip: 'option',
+          icon: const Icon(Icons.settings),
+          onPressed: () async {
+            ManagementList.openManagementPopup<Out>(
+                dialogContext: context,
+                adu: vm.adu,
+                newItem: () {
+                  return Out(
+                      section: SectionOut(name: "Life"),
+                      date: DateTime.now());
+                },
+                getChild: (Out p1) {
+                  return  Text(p1.name);
+                });
+          },
+        ),
         IconButton(
           tooltip: 'Copy',
           icon: const Icon(Icons.copy_all),

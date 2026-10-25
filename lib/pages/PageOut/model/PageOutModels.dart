@@ -1,5 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../management_list_translation.dart';
+
 part 'PageOutModels.g.dart';
 
 @JsonEnum(alwaysCreate: true)
@@ -48,7 +50,7 @@ class SectionOut {
 }
 
 @JsonSerializable(explicitToJson: true)
-class Out {
+class Out implements IItemForManagement{
   Out({
     this.value = '',
     this.description = '',
@@ -66,6 +68,18 @@ class Out {
   factory Out.fromJson(Map<String, dynamic> json) => _$OutFromJson(json);
 
   Map<String, dynamic> toJson() => _$OutToJson(this);
+
+
+  @override
+  Out toCopy() {
+    return Out(section: section, date: date)
+      ..description=description
+        ..value=value
+        ..whose=whose;
+  }
+
+  @override
+  String get name => "${section.name} - ${description}";
 }
 
 @JsonSerializable(explicitToJson: true)

@@ -68,7 +68,7 @@ class ComponentE3 extends StatelessWidget
           {
             if(item is IconExpandedList )
               {
-                item.onPressedInternal=(isOnOff){isExpandedChildren=isOnOff; we?.setStateWello(); } ;
+                item.onPressedInternal=(isOnOff){isExpandedChildren=isOnOff; we?.setStateWello(); } ;//todo
                 item.callPressInternal();
               }
 
@@ -218,7 +218,7 @@ class ComponentE3 extends StatelessWidget
           ],
         ),
         // + children
-        if(children!=null && isExpandedChildren)
+        if(isExpandedChildren)
           getFatherChildren!(thisColumnOrListView(
             isColumnOrListView: isChildrenColumnOrListView,
             colorScheme: colorScheme,
@@ -230,8 +230,7 @@ class ComponentE3 extends StatelessWidget
     );
     getFatherWidget ??= (i)=>getChild();
 
-    return
-      Wello(
+     return Wello(
         builder: (we)=>this.we=we,
         view: (Wello we) {
         return thisExpanded(

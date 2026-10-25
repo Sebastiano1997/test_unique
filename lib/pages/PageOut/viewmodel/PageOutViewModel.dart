@@ -75,7 +75,7 @@ class PageOutViewModel extends ChangeNotifier
       whose: selectedOut.whose,
 
       section: selectedSectionOut,
-      date: DateTime.now(),
+      date: selectedOut.date,
     );
     notifyListeners();
   }

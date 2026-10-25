@@ -1,15 +1,11 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../dependencies/services/ISaveLoad.dart';
 import '../data/PageOutDal.dart';
 import 'PageOutModels.dart';
 import 'package:intl/intl.dart';
 
 class ADU<T> extends ChangeNotifier {
-  ADU(
-    this.items, {
-    Future<void> Function()? callBack,
-  }) : _callBack = callBack;
+  ADU(this.items, {Future<void> Function()? callBack}) : _callBack = callBack;
 
   final List<T> items;
   final Future<void> Function()? _callBack;
@@ -25,30 +21,69 @@ class ADU<T> extends ChangeNotifier {
     notifyListeners();
     await _callBack?.call();
   }
+
+  Future<bool> replace(T oldItem, T newItem) async {
+    bool result = false;
+    int index = items.indexOf(oldItem);
+    if (index != -1) {
+      items[index] = newItem;
+      result = true;
+      notifyListeners();
+    }
+    await _callBack?.call();
+    return result;
+  }
+
+  Future<bool> move(int oldIndex, int newIndex) async {
+    bool result = false;
+    if (oldIndex < newIndex)
+    {
+      newIndex -= 1;
+    }
+
+    final T item = items.removeAt(oldIndex);
+    items.insert(newIndex, item);
+    result = true;
+    notifyListeners();
+
+    await _callBack?.call();
+    return result;
+  }
+
+  @override
+  void dispose() {
+    //super.dispose();
+  }
 }
 
 abstract interface class IPageOut {
   PageOutDm get dm;
+
   set dm(PageOutDm value);
 
   PageOutDal get dal;
+
   set dal(PageOutDal value);
 
   ADU<Out> get adu;
 
   SectionOut get selectedSectionOut;
+
   set selectedSectionOut(SectionOut value);
 
   Future<void> buildAsync();
+
   Future<void> onClickAddOut(String valueWhose, Out outItem);
+
   void onSelectedSectionOut(SectionOut sectionOut);
+
   String getSyntaxString();
 }
 
 class PageOutModel extends ChangeNotifier implements IPageOut {
   PageOutModel({PageOutDm? initialDm, PageOutDal? dal})
-      : _dm = initialDm ?? PageOutDm(),
-        _dal = dal ?? PageOutDal() {
+    : _dm = initialDm ?? PageOutDm(),
+      _dal = dal ?? PageOutDal() {
     _selectedSectionOut = _dm.listSection.first;
     _createAdu();
   }
@@ -58,7 +93,7 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
   late ADU<Out> _adu;
   late SectionOut _selectedSectionOut;
 
-  final String sectionNamePersonal2='Personal/2';
+  final String sectionNamePersonal2 = 'Personal/2';
 
   void _createAdu() {
     _adu = ADU<Out>(_dm.list, callBack: () => _dal.save(_dm));
@@ -107,16 +142,14 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
     outItem.whose = valueWhose;
     outItem.section = selectedSectionOut;
 
-    if(outItem.section.name==sectionNamePersonal2)
-      {
-        String value=outItem.value;
-        if(value!="")
-          {
-            if(value[0]=='=') value=value.substring(1);
-            value="=("+value+")/2";
-          }
-        outItem.value=value;
+    if (outItem.section.name == sectionNamePersonal2) {
+      String value = outItem.value;
+      if (value != "") {
+        if (value[0] == '=') value = value.substring(1);
+        value = "=(" + value + ")/2";
       }
+      outItem.value = value;
+    }
     await adu.add(outItem);
   }
 
@@ -127,24 +160,22 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
 
   @override
   String getSyntaxString() {
-    List<Out> listResult=[];
+    List<Out> listResult = [];
 
-    var list=dm.list;
+    var list = dm.list;
     list.sort((a, b) => a.section.name.compareTo(b.section.name));
 
-
     String? sectionName;
-    for(var i in list)
-      {
-        if(sectionName==null || sectionName!=i.section.name)
-          {
-            sectionName=i.section.name;
-            listResult.add(Out(section: i.section, date: i.date)..description=i.section.name);
-          }
-        listResult.add(i);
+    for (var i in list) {
+      if (sectionName == null || sectionName != i.section.name) {
+        sectionName = i.section.name;
+        listResult.add(
+          Out(section: i.section, date: i.date)..description = i.section.name,
+        );
       }
-    return listResult
-    .map(_getSyntaxStringItem).join('\r\n');
+      listResult.add(i);
+    }
+    return listResult.map(_getSyntaxStringItem).join('\r\n');
   }
 
   String getSyntaxStringWhereSection() {
@@ -153,7 +184,6 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
         .map(_getSyntaxStringItem)
         .join('\r\n');
   }
-
 
   String _getSyntaxStringItem(Out outItem) {
     final result = StringBuffer();
