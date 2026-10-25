@@ -322,7 +322,7 @@ class _PageOutView extends StatelessWidget {
       PageOutViewModel vm,
       String whose,
       ) async {
-    await vm.onClickAddOut(whose, vm.selectedOut);
+    await vm.onClickAddOut(whose, vm.selectedOut,context);
   }
 
 }

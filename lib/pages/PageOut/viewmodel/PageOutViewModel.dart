@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../model/PageOutModel.dart';
 import '../model/PageOutModels.dart';
@@ -16,7 +18,7 @@ abstract interface class IPageOutViewModel {
   SectionOut get selectedSectionOut;
 
   Future<void> buildAsync();
-  Future<void> onClickAddOut(String valueWhose, Out outItem);
+  Future<void> onClickAddOut(String valueWhose, Out outItem,BuildContext context);
   void onSelectedSectionOut(SectionOut sectionOut);
   Future<void> onClickCopyOut();
 }
@@ -67,7 +69,7 @@ class PageOutViewModel extends ChangeNotifier
   Future<bool> buildAsync() => _model.buildAsync();
 
   @override
-  Future<void> onClickAddOut(String valueWhose, Out outItem) async {
+  Future<void> onClickAddOut(String valueWhose, Out outItem, BuildContext context) async {
     await _model.onClickAddOut(valueWhose, outItem);
     selectedOut = Out(
       value: selectedOut.value,
@@ -78,6 +80,12 @@ class PageOutViewModel extends ChangeNotifier
       date: selectedOut.date,
     );
     notifyListeners();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Added with ${valueWhose}, ${outItem.description}, ${outItem.value}, ${DateFormat('dd/MM/yyyy').format(outItem.date)}"),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
