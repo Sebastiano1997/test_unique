@@ -196,7 +196,7 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
 
       final itemForm = syntax.itemForm;
       if (itemForm == null) continue;
-      if (syntax.whose != null && syntax.whose != outItem.whose) result.write('0');
+      if (syntax.whose != null && syntax.whose != outItem.whose){ result.write('0'); continue;}
 
       switch (itemForm) {
         case ItemFormOut.value:
