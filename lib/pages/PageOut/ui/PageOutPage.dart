@@ -169,6 +169,19 @@ class _PageOutView extends StatelessWidget {
       title: const Text('Setting'),
       settings: [
         IconButton(
+          tooltip: 'Copy All',
+          icon: const Icon(Icons.copy_all),
+          onPressed: () async {
+            await Clipboard.setData(
+              ClipboardData(text: vm.model.getSyntaxString()),
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Text copied')),
+            );
+          },
+        ),
+        IconButton(
           tooltip: 'refresh',
           icon: const Icon(Icons.refresh),
           onPressed: () async {
@@ -190,19 +203,6 @@ class _PageOutView extends StatelessWidget {
                 getChild: (Out p1) {
                   return  Text(p1.name);
                 });
-          },
-        ),
-        IconButton(
-          tooltip: 'Copy',
-          icon: const Icon(Icons.copy_all),
-          onPressed: () async {
-            await Clipboard.setData(
-              ClipboardData(text: vm.model.getSyntaxString()),
-            );
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Text copied')),
-            );
           },
         ),
         IconButton(
