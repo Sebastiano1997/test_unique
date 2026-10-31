@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../data/PageOutDal.dart';
 import 'PageOutModels.dart';
 import 'package:intl/intl.dart';
+import 'package:math_expressions/math_expressions.dart';
 
 class ADU<T> extends ChangeNotifier {
   ADU(this.items, {Future<void> Function()? callBack}) : _callBack = callBack;
@@ -94,6 +95,7 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
   late SectionOut _selectedSectionOut;
 
   final String sectionNamePersonal2 = 'Personal/2';
+  final String sectionNameGift2 = 'Gift/2';
 
   void _createAdu() {
     _adu = ADU<Out>(_dm.list, callBack: () => _dal.save(_dm));
@@ -142,7 +144,7 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
     outItem.whose = valueWhose;
     outItem.section = selectedSectionOut;
 
-    if (outItem.section.name == sectionNamePersonal2) {
+    if (outItem.section.name == sectionNamePersonal2 || outItem.section.name==sectionNameGift2) {
       String value = outItem.value;
       if (value != "") {
         if (value[0] == '=') value = value.substring(1);
@@ -229,5 +231,32 @@ class PageOutModel extends ChangeNotifier implements IPageOut {
   void deleteItem(Out item) {
     adu.delete(item);
     dal.save(dm);
+  }
+
+  double getExpression(String expression) {
+    double result;
+    if(expression=="") return 0;
+
+    // Stringa con variabili (x) e funzioni (sin)
+    //String expression = "sin(x) + 10";
+
+    Parser p = Parser();
+    Expression exp;
+    try{
+      exp = p.parse(expression);
+    }catch(e)
+    {
+      print("error: exp = p.parse(expression);");
+      return 0;
+    }
+
+    // Definisci il valore della variabile 'x' nel ContextModel
+    ContextModel cm = ContextModel();
+    //cm.bindVariable(Variable('x'), Number(math.pi / 2)); // x = π/2
+
+    //result = exp.evaluate(EvaluationType.REAL, cm);
+    result = exp.evaluate(EvaluationType.REAL,cm);
+
+    return result;
   }
 }

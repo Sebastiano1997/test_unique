@@ -93,7 +93,7 @@ class _PageOutView extends StatelessWidget {
               onPressed: vm.selectedSectionOut==section?null: () => vm.onSelectedSectionOut(section),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(section.name),
+                child: Text("${section.name}\r\n${vm.getExpressionFromSection(section)}€"),
               ),
             ),
           )
@@ -406,6 +406,7 @@ class _OutTextFieldValue extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final bool isIconRemove;
 
+
   @override
   State<_OutTextFieldValue> createState() => _OutTextFieldValueState();
 }
@@ -455,8 +456,10 @@ class _OutTextFieldValueState extends State<_OutTextFieldValue> {
         ),
           subtitle: const Text('value'),
           size: SizeE.small,
-      leading: !widget.isIconRemove?SizedBox():IconButton(onPressed: ()=>setState(() {
+      leading: !widget.isIconRemove?SizedBox():
+      IconButton(onPressed: ()=>setState(() {
           _controller.text="";
+          widget.onChanged("");
         }), icon: Icon(Icons.remove)),
       children: [
         Container(

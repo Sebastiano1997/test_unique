@@ -70,9 +70,11 @@ class PageOutViewModel extends ChangeNotifier
 
   @override
   Future<void> onClickAddOut(String valueWhose, Out outItem, BuildContext context) async {
+    if(selectedOut.value=="") selectedOut.value="0";
+    String value=selectedOut.value;
     await _model.onClickAddOut(valueWhose, outItem);
     selectedOut = Out(
-      value: selectedOut.value,
+      value: value,
       description: selectedOut.description,
       whose: selectedOut.whose,
 
@@ -120,5 +122,15 @@ class PageOutViewModel extends ChangeNotifier
   void onChangedValueField() {
     model.dal.save(model.dm);
     //notifyListeners();
+  }
+
+  String getExpressionFromSection(SectionOut section)
+  {
+    List<Out> list=this.list.where((i)=>i.section==section).toList();
+    if(list.isEmpty) return "-";
+    String expression=list.map((i)=>i.value).join("+");
+
+    if(expression.contains("=")) expression=expression.replaceAll("=", "");
+    return model.getExpression(expression).toString();
   }
 }
