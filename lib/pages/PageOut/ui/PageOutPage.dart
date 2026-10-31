@@ -86,7 +86,7 @@ class _PageOutView extends StatelessWidget {
   Widget _section(PageOutViewModel vm) {
     return ComponentE3(
       title: const Text('Section'),
-      isChildrenColumnOrListView: true,
+      isChildrenColumnOrListView: false,
       children: vm.listSection
           .map(
             (section) => TextButton(
