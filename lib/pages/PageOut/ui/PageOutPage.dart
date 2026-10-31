@@ -65,7 +65,7 @@ class _PageOutView extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: _section(vm)),
+        Expanded(child: _section(context,vm)),
         Expanded(flex: 2, child: _homeForm(context, vm)),
       ],
     );
@@ -77,16 +77,18 @@ class _PageOutView extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: _section(vm)),
+        Expanded(child: _section(context,vm)),
         Expanded(flex: 2, child: _settingsList(context, vm)),
       ],
     );
   }
 
-  Widget _section(PageOutViewModel vm) {
+  Widget _section(BuildContext context,PageOutViewModel vm) {
+    final size = MediaQuery.sizeOf(context);
     return ComponentE3(
       title: const Text('Section'),
       isChildrenColumnOrListView: false,
+      heightChildren: size.height*0.7,
       children: vm.listSection
           .map(
             (section) => TextButton(
