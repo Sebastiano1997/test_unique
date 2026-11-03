@@ -1,179 +1,364 @@
 
-using System.Collections.ObjectModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 
-namespace WpfFilterExample;
-
-public partial class MainWindow : Window
+namespace WpfFilterExample
 {
-    private ObservableCollection<Customer> Customers = new();
-
-    private ObservableCollection<string> Filters = new();
-
-    public MainWindow()
+    public partial class MainWindow : Window
     {
-        InitializeComponent();
+        private List<Customer> Customers = new();
 
-        updateTable();
+        private List<FilterItem> Filters = new();
 
-    }
-
-    public void updateTable()
-    {
-        // + list item
-        Customers.Clear();
-
-        Customers.Add(new Customer
+        public MainWindow()
         {
-            Name = "Mario Rossi",
-            City = "Milano",
-            Amount = 1500,
-            Dic = new Dictionary<string, object> {
-                {"Name","Mario Rossi" },
-                {"City","Milano" },
-                {"Amount",1500 },
-            }
-        });
+            InitializeComponent();
 
-        Customers.Add(new Customer
+            LoadData();
+
+            LoadFields();
+
+            LoadOperators();
+
+            LoadCustomers(Customers);
+        }
+
+        // ==========================================
+        // MODEL
+        // ==========================================
+
+        public class Customer
         {
-            Name = "Luca Bianchi",
-            City = "Roma",
-            Amount = 800,
-            Dic = new Dictionary<string, object> {
-                {"Name","Luca Bianchi" },
-                {"City","Roma" },
-                {"Amount",800 },
-            }
-        });
+            public Dictionary<string, object> Data { get; set; } = new();
+        }
 
-        Customers.Add(new Customer
+        public class FilterItem
         {
-            Name = "Giuseppe Verdi",
-            City = "Milano",
-            Amount = 2500,
-            Dic = new Dictionary<string, object> {
-                {"Name","Giuseppe Verdi" },
-                {"City","Milano" },
-                {"Amount",2500 },
-            }
-        });
+            public string Field { get; set; } = "";
+            public string Operator { get; set; } = "";
+            public string Value { get; set; } = "";
 
-        Customers.Add(new Customer
-        {
-            Name = "Anna Neri",
-            City = "Torino",
-            Amount = 1200,
-            Dic = new Dictionary<string, object> {
-                {"Name","Anna Neri" },
-                {"City","Torino" },
-                {"Amount",1200 },
-            }
-        });
-
-        CustomerGrid.ItemsSource = Customers; // todo use it
-
-        // + FieldCombo.Items
-        FieldCombo.Items.Clear();
-        foreach (string key in Customers.First().Dic.Keys)
-        {
-            FieldCombo.Items.Add(new ComboBoxItem
+            public override string ToString()
             {
-                Content = key
+                return $"{Field} {Operator} {Value}";
+            }
+        }
+
+        // ==========================================
+        // DATI DI ESEMPIO
+        // ==========================================
+
+        private void LoadData()
+        {
+            Customers = new List<Customer>
+            {
+                new Customer
+                {
+                    Data = new Dictionary<string, object>
+                    {
+                        ["Nome"] = "Mario Rossi",
+                        ["Città"] = "Milano",
+                        ["Importo"] = 1500m,
+                        ["Età"] = 35
+                    }
+                },
+
+                new Customer
+                {
+                    Data = new Dictionary<string, object>
+                    {
+                        ["Nome"] = "Luca Bianchi",
+                        ["Città"] = "Roma",
+                        ["Importo"] = 800m,
+                        ["Età"] = 28
+                    }
+                },
+
+                new Customer
+                {
+                    Data = new Dictionary<string, object>
+                    {
+                        ["Nome"] = "Anna Neri",
+                        ["Città"] = "Torino",
+                        ["Importo"] = 2200m,
+                        ["Età"] = 42
+                    }
+                },
+
+                new Customer
+                {
+                    Data = new Dictionary<string, object>
+                    {
+                        ["Nome"] = "Giuseppe Verdi",
+                        ["Città"] = "Milano",
+                        ["Importo"] = 3000m,
+                        ["Età"] = 50
+                    }
+                }
+            };
+        }
+
+        // ==========================================
+        // POPOLAMENTO CAMPI
+        // ==========================================
+
+        private void LoadFields()
+        {
+            FieldCombo.Items.Clear();
+
+            var fields = Customers
+                .SelectMany(c => c.Data.Keys)
+                .Distinct()
+                .ToList();
+
+            foreach (var field in fields)
+            {
+                FieldCombo.Items.Add(new ComboBoxItem
+                {
+                    Content = field
+                });
+            }
+
+            if (FieldCombo.Items.Count > 0)
+                FieldCombo.SelectedIndex = 0;
+        }
+
+        // ==========================================
+        // POPOLAMENTO OPERATORI
+        // ==========================================
+
+        private void LoadOperators()
+        {
+            OperatorCombo.Items.Clear();
+
+            string[] operators =
+            {
+                "Contiene",
+                "Uguale",
+                "Diverso",
+                "Maggiore",
+                "Minore",
+                "Inizia con",
+                "Finisce con"
+            };
+
+            foreach (var op in operators)
+            {
+                OperatorCombo.Items.Add(new ComboBoxItem
+                {
+                    Content = op
+                });
+            }
+
+            OperatorCombo.SelectedIndex = 0;
+        }
+
+        // ==========================================
+        // CARICAMENTO DATAGRID
+        // ==========================================
+
+        private void LoadCustomers(List<Customer> customers)
+        {
+            CustomerGrid.Columns.Clear();
+
+            if (Customers.Count == 0)
+                return;
+
+            var fields = Customers
+                .SelectMany(c => c.Data.Keys)
+                .Distinct()
+                .ToList();
+
+            foreach (var field in fields)
+            {
+                CustomerGrid.Columns.Add(new DataGridTextColumn
+                {
+                    Header = field,
+
+                    Binding = new Binding($"Data[{field}]"),
+
+                    Width = new DataGridLength(
+                        1,
+                        DataGridLengthUnitType.Star)
+                });
+            }
+
+            CustomerGrid.ItemsSource = customers;
+        }
+
+        // ==========================================
+        // AGGIUNTA FILTRO
+        // ==========================================
+
+        private void AddFilter_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            if (FieldCombo.SelectedItem is not ComboBoxItem fieldItem ||
+                OperatorCombo.SelectedItem is not ComboBoxItem operatorItem)
+                return;
+
+            string field = fieldItem.Content?.ToString() ?? "";
+            string op = operatorItem.Content?.ToString() ?? "";
+            string value = ValueText.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            Filters.Add(new FilterItem
+            {
+                Field = field,
+                Operator = op,
+                Value = value
             });
 
+            RefreshFilterList();
+
+            ValueText.Clear();
         }
 
-        FilterList.ItemsSource = Filters;
-    }
+        // ==========================================
+        // VISUALIZZAZIONE FILTRI
+        // ==========================================
 
-    private void AddFilter_Click(object sender, RoutedEventArgs e)
-    {
-        string field = ((ComboBoxItem)FieldCombo.SelectedItem).Content.ToString()!;
-        string op = ((ComboBoxItem)OperatorCombo.SelectedItem).Content.ToString()!;
-        string value = ValueText.Text.Trim();
-
-        if (string.IsNullOrWhiteSpace(value))
-            return;
-
-        Filters.Add($"{field}|{op}|{value}");
-
-        ValueText.Clear();
-    }
-
-    private void Apply_Click(object sender, RoutedEventArgs e)
-    {
-        var result = Customers.Where(customer =>
+        private void RefreshFilterList()
         {
-            foreach (string filter in Filters)
+            FilterList.ItemsSource = null;
+            FilterList.ItemsSource = Filters;
+        }
+
+        // ==========================================
+        // ELIMINAZIONE SINGOLO FILTRO
+        // ==========================================
+
+        private void DeleteFilter_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            if (sender is Button button &&
+                button.Tag is FilterItem filter)
             {
-                var parts = filter.Split('|');
+                Filters.Remove(filter);
 
-                string field = parts[0];
-                string op = parts[1];
-                string value = parts[2];
+                RefreshFilterList();
+            }
+        }
 
-                object valueItem=customer.Dic[field];
-                bool isChecked = false;
+        // ==========================================
+        // APPLICAZIONE FILTRI
+        // ==========================================
 
-                if(op=="Contiene")
-                {
-                    isChecked = valueItem.ToString().Contains(value,
-                                StringComparison.OrdinalIgnoreCase);
-                }
-                else if (op == "Uguale")
-                {
-                    double.TryParse(valueItem.ToString(), out double valueItemX);
-                    double.TryParse(value.ToString(), out double valueX);
-                    isChecked = (valueItemX == valueX);
-                }
-                else if(op == "Maggiore")
-                {
-                    double.TryParse(valueItem.ToString(),out double valueItemX);
-                    double.TryParse(value.ToString(),out double valueX);
-                    isChecked = (valueItemX>valueX);
-                }
-                else if(op == "Minore")
-                {
-                    double.TryParse(valueItem.ToString(), out double valueItemX);
-                    double.TryParse(value.ToString(), out double valueX);
-                    isChecked = (valueItemX < valueX);
-                }
+        private void Apply_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            var result = Customers
+                .Where(customer =>
+                    Filters.All(filter =>
+                        EvaluateFilter(customer, filter)))
+                .ToList();
 
-                if (!isChecked)
+            CustomerGrid.ItemsSource = result;
+        }
+
+        // ==========================================
+        // VALUTAZIONE FILTRO
+        // ==========================================
+
+        private bool EvaluateFilter(
+            Customer customer,
+            FilterItem filter)
+        {
+            if (!customer.Data.TryGetValue(
+                filter.Field, out object? data))
+                return false;
+
+            string actual = data?.ToString() ?? "";
+            string expected = filter.Value;
+
+            switch (filter.Operator)
+            {
+                case "Contiene":
+                    return actual.Contains(
+                        expected,
+                        StringComparison.OrdinalIgnoreCase);
+
+                case "Uguale":
+                    return string.Equals(
+                        actual,
+                        expected,
+                        StringComparison.OrdinalIgnoreCase);
+
+                case "Diverso":
+                    return !string.Equals(
+                        actual,
+                        expected,
+                        StringComparison.OrdinalIgnoreCase);
+
+                case "Inizia con":
+                    return actual.StartsWith(
+                        expected,
+                        StringComparison.OrdinalIgnoreCase);
+
+                case "Finisce con":
+                    return actual.EndsWith(
+                        expected,
+                        StringComparison.OrdinalIgnoreCase);
+
+                case "Maggiore":
+                    return CompareValues(data, expected) > 0;
+
+                case "Minore":
+                    return CompareValues(data, expected) < 0;
+
+                default:
                     return false;
             }
+        }
 
-            return true;
-        }).ToList();
+        // ==========================================
+        // CONFRONTO VALORI NUMERICI
+        // ==========================================
 
-        CustomerGrid.ItemsSource = result;
-    }
-
-    private void Reset_Click(object sender, RoutedEventArgs e)
-    {
-        Filters.Clear();
-        CustomerGrid.ItemsSource = Customers;
-    }
-
-
-    private void DeleteFilter_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button button &&
-            button.Tag is string filter)
+        private int CompareValues(
+            object actual,
+            string expected)
         {
-            Filters.Remove(filter);
+            if (actual is IConvertible &&
+                decimal.TryParse(
+                    expected,
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    out decimal expectedNumber))
+            {
+                decimal actualNumber = Convert.ToDecimal(actual);
+
+                return actualNumber.CompareTo(expectedNumber);
+            }
+
+            return string.Compare(
+                actual.ToString(),
+                expected,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        // ==========================================
+        // RESET FILTRI
+        // ==========================================
+
+        private void Reset_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            Filters.Clear();
+
+            RefreshFilterList();
+
+            CustomerGrid.ItemsSource = Customers;
         }
     }
-
-}
-
-public class Customer
-{
-    public string Name { get; set; } = "";
-    public string City { get; set; } = "";
-    public double Amount { get; set; }
-
-    public Dictionary<string, object> Dic { get; set; } = new Dictionary<string, object>();
 }
