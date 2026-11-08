@@ -131,6 +131,7 @@ class PageOutViewModel extends ChangeNotifier
     String expression=list.map((i)=>i.value).join("+");
 
     if(expression.contains("=")) expression=expression.replaceAll("=", "");
+    if(expression.contains(",")) expression=expression.replaceAll(",", ".");
     return model.getExpression(expression).toString();
   }
 }
