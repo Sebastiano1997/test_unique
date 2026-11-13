@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../Component/ComponentE.dart';
-import '../../models/item_single_note.dart';
-import '../../models/page_note.dart';
-import '../../models/section_note.dart';
-import '../../models/single_note.dart';
+import '../model/item_single_note.dart';
+import '../model/page_note.dart';
+import '../model/section_note.dart';
+import '../model/single_note.dart';
 
 /// Pagina per navigare tra le sezioni, le note e i relativi elementi.
 class PageNotePage extends StatefulWidget {
